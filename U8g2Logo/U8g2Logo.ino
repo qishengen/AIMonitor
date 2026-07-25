@@ -35,6 +35,7 @@
 
 #include <Arduino.h>
 #include <U8g2lib.h>
+#include "IMG.h"
 #define U8X8_HAVE_HW_I2C
 
 #ifdef U8X8_HAVE_HW_SPI
@@ -46,6 +47,9 @@
 
 #define SCL 2
 #define SDA 0
+
+// #define SCL 22
+// #define SDA 21
 
 /*
   U8g2lib Example Overview:
@@ -418,6 +422,7 @@ U8G2_SSD1306_128X64_NONAME_1_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SD
 //#define MINI_LOGO
 
 void setup(void) {
+  Serial.begin(9600);
   /* U8g2 Project: SSD1306 / UC1638 Test Board */
   //pinMode(10, OUTPUT);
   //pinMode(9, OUTPUT);
@@ -520,10 +525,12 @@ void drawURL(void)
 void loop(void) {
   u8g2.firstPage();
   do {
-    drawLogo();
-    drawURL();
+    // drawLogo();
+    // drawURL();
+    Serial.println("hello world");
+    u8g2.drawXBMP( 32,  0,  WIDTH,  HEIGHT, bitmap);
+
   } while ( u8g2.nextPage() );
-  u8g2.drawXBMP(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h, const uint8_t *bitmap)
   delay(4000);
 }
 
