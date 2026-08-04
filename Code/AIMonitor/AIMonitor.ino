@@ -9,7 +9,7 @@
 #define SDA 0
 // #define SCL 22
 // #define SDA 21
-U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, SCL, SDA, U8X8_PIN_NONE);  // All Boards without Reset of the Display
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R2, SCL, SDA, U8X8_PIN_NONE);  // All Boards without Reset of the Display
 
 
 
