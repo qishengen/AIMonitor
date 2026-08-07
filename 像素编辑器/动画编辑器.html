@@ -45,7 +45,7 @@
         .canvas-outer{ display:flex; flex-direction:column; align-items:center; gap:6px; }
         .canvas-scroll{ overflow:auto; max-height:70vh; border-radius:var(--radius); box-shadow:0 0 0 3px var(--border),0 6px 24px rgba(0,0,0,0.5); background:#fff; position:relative; }
         .canvas-inner{ position:relative; width:512px; height:512px; transform-origin:top left; transition:transform 0.1s; }
-        .canvas-inner img.ref-bg{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill; pointer-events:none; opacity:0.3; image-rendering:pixelated; }
+        .canvas-inner img.ref-bg{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill; pointer-events:none; opacity:0.4; image-rendering:pixelated; }
         canvas#pixelCanvas{ display:block; width:100%; height:100%; image-rendering:crisp-edges; image-rendering:pixelated; position:relative; z-index:1; }
         .zoom-bar{ display:flex; align-items:center; gap:6px; font-size:0.8rem; background:var(--surface2); padding:4px 10px; border-radius:4px; border:1px solid var(--border); }
         .ref-controls{ display:flex; align-items:center; gap:6px; font-size:0.75rem; background:var(--surface2); padding:4px 10px; border-radius:4px; border:1px solid var(--border); }
@@ -80,6 +80,19 @@
         .toast{ position:fixed; top:18px; left:50%; transform:translateX(-50%) translateY(-120px); background:#444; color:#fff; padding:9px 22px; border-radius:22px; font-weight:600; z-index:999; pointer-events:none; transition:0.3s; }
         .toast.show{ transform:translateX(-50%) translateY(0); }
         .hint{ font-size:0.7rem; color:#666; text-align:center; }
+        /* ---- 分隔线与设备控制面板 ---- */
+        .divider{ border:none; border-top:1px solid var(--border); margin:6px 0; width:100%; }
+        .device-panel{ display:flex; flex-direction:column; gap:8px; align-items:stretch; width:100%; max-width:560px; margin:0 auto; }
+        .serial-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+        .serial-row select, .serial-row input[type="text"]{ background:var(--surface); color:#fff; border:1px solid var(--border); border-radius:4px; padding:6px 10px; font-size:0.8rem; flex:1 1 100px; min-width:80px; }
+        .conn-dot{ width:12px; height:12px; border-radius:50%; background:#666; transition:0.3s; flex-shrink:0; }
+        .conn-dot.on{ background:#4caf50; box-shadow:0 0 8px #4caf50; }
+        .conn-dot.streaming{ background:#f44336; box-shadow:0 0 8px #f44336; }
+        .btn.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+        .btn.danger{ background:#e05252; border-color:#e05252; color:#fff; }
+        .log-area{ background:#101018; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; height:140px; overflow-y:auto; font-family:Consolas,Menlo,monospace; font-size:0.72rem; color:#9fe3af; -webkit-user-select:text; user-select:text; cursor:text; }
+        .log-line{ white-space:pre-wrap; word-break:break-all; padding:1px 0; border-bottom:1px solid rgba(255,255,255,0.04); -webkit-user-select:text; user-select:text; }
+        .log-line.rx{ color:#8fd0ff; } .log-line.err{ color:#ff7b7b; } .log-line.warn{ color:#ffd27d; } .log-line.ok{ color:#7ef0a2; } .log-line.raw{ color:#bbb; }
         @media(max-width:700px){
             .frame-item{width:38px; height:38px;}
             .frames-row{height:52px;}
@@ -96,8 +109,8 @@
                 <option value="16">16×16</option>
                 <option value="32">32×32</option>
                 <option value="64" selected>64×64</option>
-                <option value="128">128×128</option>
-                <option value="256">256×256</option>
+                <option value="64x32">64×32</option>
+                <option value="128x64">128×64 (设备)</option>
             </select>
         </div>
     </div>
@@ -107,6 +120,7 @@
             <span>📥 导入</span>
             <button class="btn btn-sm" id="btnImportImage">🖼 图片</button>
             <button class="btn btn-sm" id="btnImportCArray">📄 C数组</button>
+            <button class="btn btn-sm" id="btnImportPXA">🎞 PXA</button>
             <button class="btn btn-sm" id="btnRefImage">📷 参考图</button>
             <input type="file" id="fileInput" accept="image/*,.txt,.h,.c" style="display:none">
             <input type="file" id="refFileInput" accept="image/*" style="display:none">
@@ -115,18 +129,12 @@
 
     <div class="toolbar-row">
         <div class="toolbar-group brush-group">
-            <span>🎨 画笔</span>
+            <span>🖤 画笔</span>
             <div class="color-presets" id="colorPresets" style="display:flex; gap:6px;">
                 <span class="color-swatch active" data-color="#000000" style="background:#000"></span>
-                <span class="color-swatch" data-color="#e53935" style="background:#e53935; display:none"></span>
-                <span class="color-swatch" data-color="#2e7d32" style="background:#2e7d32; display:none"></span>
-                <span class="color-swatch" data-color="#1e56d0" style="background:#1e56d0; display:none"></span>
-                <span class="color-swatch" data-color="#ef6c00" style="background:#ef6c00; display:none"></span>
-                <span class="color-swatch" data-color="#f9c851" style="background:#f9c851; display:none"></span>
-                <span class="color-swatch" data-color="#7b1fa2" style="background:#7b1fa2; display:none"></span>
                 <span class="color-swatch eraser" data-color="#FFFFFF"></span>
             </div>
-            <input type="color" id="customColor" value="#000000">
+            <span style="font-size:0.72rem; color:var(--text-secondary);">黑白模式</span>
         </div>
     </div>
 
@@ -139,8 +147,8 @@
             <button class="btn" id="btnGrid">📐 网格</button>
         </div>
         <div class="toolbar-group">
-            <button class="btn" id="btnMode">🖤 黑白模式</button>
-            <button class="btn" id="btnSelectMode" title="框选移动像素">🔲 选择</button>
+            <span class="status-item">🖤 黑白模式</span>
+            <button class="btn" id="btnSelectMode" title="选择模式：左键拖拽框选，选中区内拖拽移动像素">🔲 选择</button>
         </div>
     </div>
 
@@ -162,6 +170,27 @@
             <input type="range" id="refOpacity" min="0" max="1" value="0.3" step="0.05">
             <span id="refOpacityLabel">30%</span>
             <button class="btn-sm" id="btnClearRef">清除</button>
+        </div>
+    </div>
+
+    <div class="toolbar-row" id="importBar" style="justify-content:center; display:none;">
+        <div class="toolbar-group" style="flex-wrap:wrap;">
+            <span>🖼 导入预览</span>
+            <button class="btn-sm" id="btnImpFit">↔ 适应</button>
+            <span>缩放:</span>
+            <input type="range" id="impScale" min="5" max="800" value="100" style="width:120px;">
+            <span id="impScaleLabel">100%</span>
+            <select id="impMode">
+                <option value="fill">填充(全局阈值)</option>
+                <option value="adaptive">自适应(局部对比)</option>
+                <option value="edge">轮廓(边缘)</option>
+            </select>
+            <span id="impThreshLabel">阈值</span>
+            <input type="range" id="impThresh" min="0" max="255" value="128" style="width:120px;">
+            <span id="impThreshVal">128</span>
+            <button class="btn accent" id="btnImpApply">✓ 应用</button>
+            <button class="btn" id="btnImpCancel">✕ 取消</button>
+            <span style="font-size:0.7rem; color:var(--text-secondary);">拖动=移动 · 滚轮=缩放</span>
         </div>
     </div>
 
@@ -194,7 +223,37 @@
             <button class="btn btn-sm btn-copy" id="btnCopyCArr">📋</button>
             <button class="btn btn-sm" id="btnExportCArrAll">C数组(全部)</button>
             <button class="btn btn-sm btn-copy" id="btnCopyCArrAll">📋</button>
+            <button class="btn btn-sm accent" id="btnExportPXA" title="导出为 PXA 文本格式（便于 git 分享/预览）">🎞 PXA</button>
             <button class="btn btn-sm" id="btnBitOrder">位序: LSB</button>
+        </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="toolbar-row" style="justify-content:center;">
+        <div class="device-panel">
+            <div class="serial-row">
+                <span>🔌 设备</span>
+                <select id="serialPorts"></select>
+                <button class="btn" id="btnConnect">🔌 连接</button>
+                <select id="baudSelect">
+                    <option>921600</option>
+                    <option>460800</option>
+                    <option>115200</option>
+                </select>
+                <span class="conn-dot" id="connDot"></span>
+            </div>
+            <div class="serial-row">
+                <input type="text" id="animName" value="editor.anm" title="上传/播放的动画文件名" placeholder="动画名.anm">
+                <button class="btn" id="btnUpload" title="分块上传+CRC32校验，直接保存到设备">📤 上传动画</button>
+                <button class="btn" id="btnSendFrame" title="立即在设备显示当前帧">🖥 发送当前帧</button>
+                <button class="btn" id="btnDevicePlay" title="播放设备中的同名动画">▶ 设备播放</button>
+                <button class="btn" id="btnDeviceStop" title="停止播放">⏹ 停止</button>
+                <button class="btn" id="btnStreamToggle" title="将全部帧按 FPS 流式实时播放到设备">🔴 流式预览</button>
+                <button class="btn" id="btnRefresh" title="查询固件版本/状态/动画列表">🔄 状态</button>
+                <button class="btn" id="btnDelete" title="删除设备中与左侧同名(.anm)的动画">🗑 删除</button>
+            </div>
+            <div class="log-area" id="logArea"></div>
         </div>
     </div>
 
@@ -205,7 +264,7 @@
         <span class="status-item" id="statusMode">黑白</span>
         <span class="status-item" id="statusBitOrder">LSB</span>
     </div>
-    <div class="hint">🖱 <kbd>左键</kbd>绘制 <kbd>右键</kbd>擦除 · 框选模式下拖拽选区可移动</div>
+    <div class="hint">🖱 <kbd>左键</kbd>绘制 <kbd>右键</kbd>擦除 · 选择模式：左键拖拽=框选 · 选中区内左键拖拽=移动像素 · 右键=取消选择 · 🔌 设备面板需 Web Serial（Chrome/Edge，建议 localhost 下打开）</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -242,6 +301,7 @@ class GIFDecoder {
         let dict = new Map();
         for (let i = 0; i < clear; i++) dict.set(i, [i]);
         dict.set(clear, []);
+        dict.set(end, []);   // 预留 end 码，首个新码从 clear+2 开始
         const result = [];
         let bitPos = 0, code = 0, last = [];
         const readBits = (n) => {
@@ -261,6 +321,7 @@ class GIFDecoder {
                 dict = new Map();
                 for (let i = 0; i < clear; i++) dict.set(i, [i]);
                 dict.set(clear, []);
+                dict.set(end, []);
                 last = [];
                 continue;
             }
@@ -288,6 +349,7 @@ class GIFDecoder {
         const height = this.readShort();
         const packed = this.readByte();
         const bgIndex = this.readByte();
+        this.bgIndex = bgIndex;
         this.readByte(); // aspect ratio
         const hasGlobalColorTable = packed & 0x80;
         const globalColorTableSize = 2 << (packed & 0x07);
@@ -299,6 +361,7 @@ class GIFDecoder {
         const frames = [];
         let delay = 10;
         let transparentIdx = -1;
+        let disposal = 0;
         while (this.offset < this.data.length) {
             const blockType = this.readByte();
             if (blockType === 0x21) {
@@ -308,6 +371,7 @@ class GIFDecoder {
                     const flags = this.readByte();
                     delay = this.readShort() * 10;
                     transparentIdx = (flags & 1) ? this.readByte() : -1;
+                    disposal = (flags >> 2) & 7;
                     this.readByte(); // terminator
                 } else {
                     this.readBlock(); // skip
@@ -332,7 +396,7 @@ class GIFDecoder {
                 const table = localTable || globalTable;
                 frames.push({
                     left, top, width: imgWidth, height: imgHeight,
-                    delay, transparentIdx, table, indices,
+                    delay, transparentIdx, table, indices, disposal,
                     globalWidth: width, globalHeight: height
                 });
             } else if (blockType === 0x3B) {
@@ -342,6 +406,7 @@ class GIFDecoder {
         this.frames = frames;
         this.globalWidth = width;
         this.globalHeight = height;
+        this.composited = null;
         return this;
     }
     readString(len) {
@@ -350,39 +415,67 @@ class GIFDecoder {
         return s;
     }
     getFrameImageData(frameIdx, outWidth, outHeight) {
-        const frame = this.frames[frameIdx];
-        if (!frame) return null;
+        if (!this.frames[frameIdx]) return null;
+        if (!this.composited) this.compositeAll();
+        const W = this.globalWidth, H = this.globalHeight;
         const offCanvas = document.createElement('canvas');
-        offCanvas.width = this.globalWidth;
-        offCanvas.height = this.globalHeight;
-        const ctx = offCanvas.getContext('2d');
-        const imageData = ctx.createImageData(this.globalWidth, this.globalHeight);
-        for (let y = 0; y < this.globalHeight; y++) {
-            for (let x = 0; x < this.globalWidth; x++) {
-                const i = (y * this.globalWidth + x) * 4;
-                if (x >= frame.left && x < frame.left + frame.width && y >= frame.top && y < frame.top + frame.height) {
-                    const idx = frame.indices[(y - frame.top) * frame.width + (x - frame.left)];
-                    if (idx === frame.transparentIdx) {
-                        imageData.data[i + 3] = 0;
-                    } else if (frame.table) {
-                        imageData.data[i] = frame.table[idx * 3];
-                        imageData.data[i + 1] = frame.table[idx * 3 + 1];
-                        imageData.data[i + 2] = frame.table[idx * 3 + 2];
-                        imageData.data[i + 3] = 255;
-                    }
-                } else {
-                    imageData.data[i + 3] = 0;
-                }
-            }
-        }
-        ctx.putImageData(imageData, 0, 0);
+        offCanvas.width = W; offCanvas.height = H;
+        const octx = offCanvas.getContext('2d');
+        const img = octx.createImageData(W, H);
+        img.data.set(this.composited[frameIdx]);
+        octx.putImageData(img, 0, 0);
         const scaleCanvas = document.createElement('canvas');
         scaleCanvas.width = outWidth;
         scaleCanvas.height = outHeight;
         const sctx = scaleCanvas.getContext('2d');
         sctx.imageSmoothingEnabled = false;
-        sctx.drawImage(offCanvas, 0, 0, outWidth, outHeight);
+        // 等比适应：缩放并居中，留白透明
+        const fit = Math.min(outWidth / W, outHeight / H);
+        const dw = W * fit, dh = H * fit;
+        sctx.drawImage(offCanvas, (outWidth - dw) / 2, (outHeight - dh) / 2, dw, dh);
         return sctx.getImageData(0, 0, outWidth, outHeight);
+    }
+    // 逐帧合成：支持部分帧更新 + 透明 + 处置方式(0/1保留 2背景 3恢复)，结果缓存
+    compositeAll() {
+        const W = this.globalWidth, H = this.globalHeight;
+        const canvas = new Uint8ClampedArray(W * H * 4);
+        let restore = new Uint8ClampedArray(canvas);
+        const out = [];
+        for (let fi = 0; fi < this.frames.length; fi++) {
+            const f = this.frames[fi];
+            if (fi > 0) {
+                const pf = this.frames[fi - 1];
+                if (pf.disposal === 2) {           // 恢复为背景(透明)
+                    for (let y = pf.top; y < pf.top + pf.height; y++)
+                        for (let x = pf.left; x < pf.left + pf.width; x++) {
+                            const i = (y * W + x) * 4;
+                            canvas[i] = canvas[i + 1] = canvas[i + 2] = canvas[i + 3] = 0;
+                        }
+                } else if (pf.disposal === 3) {    // 恢复为上一帧前的状态
+                    for (let y = pf.top; y < pf.top + pf.height; y++)
+                        for (let x = pf.left; x < pf.left + pf.width; x++) {
+                            const i = (y * W + x) * 4;
+                            canvas[i] = restore[i]; canvas[i + 1] = restore[i + 1];
+                            canvas[i + 2] = restore[i + 2]; canvas[i + 3] = restore[i + 3];
+                        }
+                }
+            }
+            restore = new Uint8ClampedArray(canvas);
+            const table = f.table;
+            for (let y = f.top; y < f.top + f.height; y++) {
+                for (let x = f.left; x < f.left + f.width; x++) {
+                    const idx = f.indices[(y - f.top) * f.width + (x - f.left)];
+                    if (idx === f.transparentIdx) continue;
+                    if (table) {
+                        const i = (y * W + x) * 4;
+                        canvas[i] = table[idx * 3]; canvas[i + 1] = table[idx * 3 + 1];
+                        canvas[i + 2] = table[idx * 3 + 2]; canvas[i + 3] = 255;
+                    }
+                }
+            }
+            out.push(new Uint8ClampedArray(canvas));
+        }
+        this.composited = out;
     }
 }
 
@@ -428,14 +521,7 @@ class GIFEncoder {
             buf.writeShort(Math.floor(delay / 10));
             buf.writeByte(0); // transparent index (unused)
             buf.writeByte(0);
-            // image descriptor
-            buf.writeByte(0x2C);
-            buf.writeShort(0);
-            buf.writeShort(0);
-            buf.writeShort(this.width);
-            buf.writeShort(this.height);
-            buf.writeByte(0x00); // no local color table
-            // collect RGB values
+            // 收集 RGB
             const rgbData = [];
             for (let y = 0; y < this.height; y++) {
                 for (let x = 0; x < this.width; x++) {
@@ -443,17 +529,28 @@ class GIFEncoder {
                     rgbData.push((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
                 }
             }
-            // simple median cut palette (256 colors)
+            // 中位切分调色板，补齐到 2 的幂
             const palette = this.quantize(rgbData, 256);
-            const paletteSize = palette.length / 3;
-            // write local color table
-            buf.writeByte(0x80 | (paletteSize - 1)); // local table flag + size
-            for (let i = 0; i < palette.length; i++) buf.writeByte(palette[i]);
+            const nColors = palette.length / 3;
+            const bits = Math.min(8, Math.max(1, Math.ceil(Math.log2(nColors))));
+            const tableSize = 1 << bits;
+            const minCodeSize = Math.max(2, bits);
+            const padded = new Uint8Array(tableSize * 3);
+            for (let i = 0; i < nColors * 3; i++) padded[i] = palette[i];
+            // image descriptor（本地颜色表标志 + 尺寸 2^(bits-1)）
+            buf.writeByte(0x2C);
+            buf.writeShort(0);
+            buf.writeShort(0);
+            buf.writeShort(this.width);
+            buf.writeShort(this.height);
+            buf.writeByte(0x80 | (bits - 1));
+            for (let i = 0; i < padded.length; i++) buf.writeByte(padded[i]);
+            // 像素 -> 调色板索引
             const indices = new Uint8Array(this.width * this.height);
             for (let i = 0; i < this.width * this.height; i++) {
                 let best = 0;
                 let bestDist = Infinity;
-                for (let j = 0; j < paletteSize; j++) {
+                for (let j = 0; j < nColors; j++) {
                     const dr = rgbData[i * 3] - palette[j * 3];
                     const dg = rgbData[i * 3 + 1] - palette[j * 3 + 1];
                     const db = rgbData[i * 3 + 2] - palette[j * 3 + 2];
@@ -465,9 +562,9 @@ class GIFEncoder {
                 }
                 indices[i] = best;
             }
-            // LZW encode
-            const compressed = this.lzwEncode(indices, paletteSize <= 2 ? 2 : (paletteSize <= 4 ? 3 : (paletteSize <= 8 ? 4 : (paletteSize <= 16 ? 5 : (paletteSize <= 32 ? 6 : (paletteSize <= 64 ? 7 : 8))))));
-            buf.writeByte(8); // min code size
+            // LZW encode（min code size 与实际一致）
+            const compressed = this.lzwEncode(indices, minCodeSize);
+            buf.writeByte(minCodeSize);
             for (const block of compressed) {
                 buf.writeByte(block.length);
                 buf.writeBytes(block);
@@ -517,14 +614,15 @@ class GIFEncoder {
         let codeSize = minCodeSize + 1;
         const dict = new Map();
         for (let i = 0; i < clear; i++) dict.set(String.fromCharCode(i), i);
+        let nextCode = clear + 2;   // 首个新码从 clear+2 开始（跳过 clear 与 end）
         const output = [];
         let bits = 0, bitCount = 0;
         const writeBits = (code) => {
-            bits |= code << bitCount;
+            bits = (bits | (code << bitCount)) >>> 0;
             bitCount += codeSize;
             while (bitCount >= 8) {
                 output.push(bits & 0xFF);
-                bits >>= 8;
+                bits = (bits >>> 8) >>> 0;
                 bitCount -= 8;
             }
         };
@@ -537,7 +635,18 @@ class GIFEncoder {
                 w = wk;
             } else {
                 writeBits(dict.get(w));
-                if (dict.size < 4095) dict.set(wk, dict.size);
+                if (nextCode < 4096) {
+                    dict.set(wk, nextCode++);
+                    // 码宽增长需比字典计数晚一个：与标准解码器(首个新码由第2码经KwKwK构建)对齐
+                    if (nextCode >= (1 << codeSize) + 1 && codeSize < 12) codeSize++;
+                } else {
+                    // 字典已满：输出 clear 并重置
+                    writeBits(clear);
+                    codeSize = minCodeSize + 1;
+                    dict = new Map();
+                    for (let c = 0; c < clear; c++) dict.set(String.fromCharCode(c), c);
+                    nextCode = clear + 2;
+                }
                 w = k;
             }
         }
@@ -563,19 +672,21 @@ class ByteWriter {
 <script>
 (function(){
     const WHITE=0xFFFFFF, BLACK=0x000000, MAX_HISTORY=80;
-    let gridSize=64, cellSize=512/gridSize;
+    let gridSize=64, gridHeight=64, cellSize=512/gridSize;
     let frames=[], currentFrameIdx=0, historyStacks=[];
     let currentColor=BLACK, showGrid=true;
-    let bwMode=true, msbFirst=false;
+    let msbFirst=false;
     let zoomLevel=1, refOpacity=0.3;
     let fps=12, loop=true;
     let playing=false, playTimer=null;
     let hoverPos=null, isDrawing=false, drawMode='draw', lastCell=null;
     let selectMode = false, selection = null, isMovingSelection = false, moveStartCell = null;
+    let isMarquee = false, moveSnapshot = null;   // 框选进行中 / 移动实时预览快照
+    let importing=false, impImg=null, impScale=1, impTx=0, impTy=0, impMode='fill', impThresh=128, impPan=false, impPanStart=null;
 
     const canvas=document.getElementById('pixelCanvas'), ctx=canvas.getContext('2d');
     const frameListDiv=document.getElementById('frameList'), toast=document.getElementById('toast');
-    const sizeSelect=document.getElementById('sizeSelect'), btnMode=document.getElementById('btnMode');
+    const sizeSelect=document.getElementById('sizeSelect');
     const btnSelectMode = document.getElementById('btnSelectMode');
     const btnBitOrder = document.getElementById('btnBitOrder');
     const statusCoords=document.getElementById('statusCoords'), statusPixels=document.getElementById('statusPixels');
@@ -587,34 +698,44 @@ class ByteWriter {
     const refOpacityInput=document.getElementById('refOpacity'), refOpacityLabel=document.getElementById('refOpacityLabel');
 
     function initFrames(){
-        frames=[{pixelData:Array.from({length:gridSize},()=>new Array(gridSize).fill(WHITE))}];
+        frames=[{pixelData:Array.from({length:gridHeight},()=>new Array(gridSize).fill(WHITE))}];
         historyStacks=[{undoStack:[],redoStack:[]}]; currentFrameIdx=0;
     }
     function getCurrentFrame(){ return frames[currentFrameIdx]; }
     function getCurrentHistory(){ return historyStacks[currentFrameIdx]; }
-    function applyBwFilter(color){ return bwMode ? (color===WHITE?WHITE:BLACK) : color; }
+    function applyBwFilter(color){ return (color===WHITE?WHITE:BLACK); }
 
-    function resizeAllFrames(newSize){
-        if(newSize===gridSize) return;
-        const scale=confirm('改变尺寸为 '+newSize+'×'+newSize+' ？\n确定=缩放内容，取消=清空所有帧');
+    function updateCanvasSize(){
+        const w=cellSize*gridSize, h=cellSize*gridHeight;
+        canvas.width=w; canvas.height=h;
+        canvas.style.width=w+'px'; canvas.style.height=h+'px';
+        canvasInner.style.width=w+'px'; canvasInner.style.height=h+'px';
+    }
+    function resizeAllFrames(newW,newH){
+        if(newW===gridSize && newH===gridHeight) return;
+        const scale=confirm('改变尺寸为 '+newW+'×'+newH+' ？\n确定=缩放内容，取消=清空所有帧');
+        const oldW=gridSize, oldH=gridHeight;
         for(let f of frames){
-            let old=f.pixelData, fresh=Array.from({length:newSize},()=>new Array(newSize).fill(WHITE));
-            if(scale){ let ratio=newSize/gridSize; for(let y=0;y<newSize;y++) for(let x=0;x<newSize;x++){ let sy=Math.floor(y/ratio),sx=Math.floor(x/ratio); if(sy<gridSize&&sx<gridSize) fresh[y][x]=old[sy][sx]; } }
+            let old=f.pixelData, fresh=Array.from({length:newH},()=>new Array(newW).fill(WHITE));
+            if(scale){ const rw=oldW/newW, rh=oldH/newH; for(let y=0;y<newH;y++) for(let x=0;x<newW;x++){ let sy=Math.floor(y*rh),sx=Math.floor(x*rw); if(sy<oldH&&sx<oldW) fresh[y][x]=old[sy][sx]; } }
             f.pixelData=fresh;
         }
-        gridSize=newSize; cellSize=512/gridSize; canvas.width=canvas.height=512; renderAll(); updateZoom();
+        gridSize=newW; gridHeight=newH; cellSize=512/gridSize; renderAll(); updateZoom();
     }
 
     function renderCurrentFrame(){
-        canvas.width=canvas.height=512; ctx.clearRect(0,0,512,512);
+        updateCanvasSize(); ctx.clearRect(0,0,canvas.width,canvas.height);
         const pd=getCurrentFrame().pixelData;
-        for(let y=0;y<gridSize;y++) for(let x=0;x<gridSize;x++){
-            const c=pd[y][x]; ctx.fillStyle=`rgb(${(c>>16)&0xFF},${(c>>8)&0xFF},${c&0xFF})`;
+        // 空白(白)格子画为透明，让底层背景(白色/参考图)透出来；黑色像素画在最上层
+        for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){
+            const c=pd[y][x]; if(c===WHITE) continue;
+            ctx.fillStyle=`rgb(${(c>>16)&0xFF},${(c>>8)&0xFF},${c&0xFF})`;
             ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
         }
         if(showGrid){
             ctx.strokeStyle='rgba(180,180,200,0.35)'; ctx.lineWidth=0.5; ctx.beginPath();
-            for(let i=0;i<=gridSize;i++){ const p=i*cellSize; ctx.moveTo(p,0); ctx.lineTo(p,512); ctx.moveTo(0,p); ctx.lineTo(512,p); } ctx.stroke();
+            for(let i=0;i<=gridSize;i++){ const p=i*cellSize; ctx.moveTo(p,0); ctx.lineTo(p,canvas.height); }
+            for(let i=0;i<=gridHeight;i++){ const p=i*cellSize; ctx.moveTo(0,p); ctx.lineTo(canvas.width,p); } ctx.stroke();
         }
         if(selection){
             const {row1, col1, row2, col2} = selection;
@@ -628,15 +749,24 @@ class ByteWriter {
             ctx.fillStyle='rgba(128,160,255,0.4)'; ctx.fillRect(hoverPos.col*cellSize, hoverPos.row*cellSize, cellSize, cellSize);
             ctx.strokeStyle='rgba(60,80,200,0.8)'; ctx.lineWidth=1.5; ctx.strokeRect(hoverPos.col*cellSize+0.5, hoverPos.row*cellSize+0.5, cellSize-1, cellSize-1);
         }
+        if(importing && impImg){
+            const iw=impImg.naturalWidth*impScale, ih=impImg.naturalHeight*impScale;
+            ctx.save(); ctx.globalAlpha=0.55; ctx.imageSmoothingEnabled=true;
+            ctx.drawImage(impImg, impTx*cellSize, impTy*cellSize, iw*cellSize, ih*cellSize);
+            ctx.restore();
+            ctx.strokeStyle='#7c8cf8'; ctx.lineWidth=2; ctx.setLineDash([5,3]);
+            ctx.strokeRect(impTx*cellSize, impTy*cellSize, iw*cellSize, ih*cellSize);
+            ctx.setLineDash([]);
+        }
     }
 
     function renderFrameThumbnails(){
         frameListDiv.innerHTML='';
         frames.forEach((f,idx)=>{
             const div=document.createElement('div'); div.className='frame-item'+(idx===currentFrameIdx?' active':'');
-            const thumb=document.createElement('canvas'); thumb.width=gridSize; thumb.height=gridSize;
-            const tctx=thumb.getContext('2d'); const imgData=tctx.createImageData(gridSize,gridSize);
-            for(let y=0;y<gridSize;y++) for(let x=0;x<gridSize;x++){ const c=f.pixelData[y][x]; const i=(y*gridSize+x)*4; imgData.data[i]=(c>>16)&0xFF; imgData.data[i+1]=(c>>8)&0xFF; imgData.data[i+2]=c&0xFF; imgData.data[i+3]=255; }
+            const thumb=document.createElement('canvas'); thumb.width=gridSize; thumb.height=gridHeight;
+            const tctx=thumb.getContext('2d'); const imgData=tctx.createImageData(gridSize,gridHeight);
+            for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){ const c=f.pixelData[y][x]; const i=(y*gridSize+x)*4; imgData.data[i]=(c>>16)&0xFF; imgData.data[i+1]=(c>>8)&0xFF; imgData.data[i+2]=c&0xFF; imgData.data[i+3]=255; }
             tctx.putImageData(imgData,0,0); div.appendChild(thumb); div.onclick=()=>switchFrame(idx); frameListDiv.appendChild(div);
         });
         const active=frameListDiv.querySelector('.active'); if(active) active.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
@@ -646,17 +776,22 @@ class ByteWriter {
     function switchFrame(idx){ if(idx===currentFrameIdx) return; currentFrameIdx=idx; clearSelection(); renderAll(); }
     function updateStatus(){
         const pd=getCurrentFrame().pixelData; let count=0;
-        for(let y=0;y<gridSize;y++) for(let x=0;x<gridSize;x++) if(pd[y][x]!==WHITE) count++;
+        for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++) if(pd[y][x]!==WHITE) count++;
         statusPixels.textContent=`已绘制: ${count} px`; statusFrame.textContent=`帧: ${currentFrameIdx+1}/${frames.length}`;
         statusCoords.textContent=hoverPos?`坐标: ${hoverPos.col},${hoverPos.row}`:'坐标: — , —';
-        statusMode.textContent=bwMode?'黑白':'彩色';
+        statusMode.textContent='黑白';
     }
 
+    function toCanvasPx(e){
+        const rect=canvas.getBoundingClientRect();
+        let cx,cy;
+        if(e.touches){ cx=e.touches[0].clientX; cy=e.touches[0].clientY; }
+        else { cx=e.clientX; cy=e.clientY; }
+        return {x:(cx-rect.left)*(canvas.width/rect.width), y:(cy-rect.top)*(canvas.height/rect.height)};
+    }
     function getCell(e){
-        const rect=canvas.getBoundingClientRect(); const scaleX=512/rect.width, scaleY=512/rect.height;
-        let cx,cy; if(e.touches){ cx=e.touches[0].clientX; cy=e.touches[0].clientY; } else { cx=e.clientX; cy=e.clientY; }
-        const x=(cx-rect.left)*scaleX, y=(cy-rect.top)*scaleY; const col=Math.floor(x/cellSize), row=Math.floor(y/cellSize);
-        if(col>=0&&col<gridSize&&row>=0&&row<gridSize) return {row,col}; return null;
+        const p=toCanvasPx(e); const col=Math.floor(p.x/cellSize), row=Math.floor(p.y/cellSize);
+        if(col>=0&&col<gridSize&&row>=0&&row<gridHeight) return {row,col}; return null;
     }
     function getLine(r1,c1,r2,c2){
         const pts=[]; let dr=Math.abs(r2-r1),dc=Math.abs(c2-c1),sr=r1<r2?1:-1,sc=c1<c2?1:-1,err=dr-dc; let cr=r1,cc=c1;
@@ -679,24 +814,48 @@ class ByteWriter {
         if(!selection) return; const pd=getCurrentFrame().pixelData; const {row1,col1,row2,col2}=selection;
         const pixels=[]; for(let r=row1;r<=row2;r++) for(let c=col1;c<=col2;c++) if(pd[r][c]!==WHITE) pixels.push({r,c,color:pd[r][c]});
         for(let r=row1;r<=row2;r++) for(let c=col1;c<=col2;c++) pd[r][c]=WHITE;
-        let allInside=true; for(const p of pixels){ const nr=p.r+dr,nc=p.c+dc; if(nr>=0&&nr<gridSize&&nc>=0&&nc<gridSize) pd[nr][nc]=p.color; else allInside=false; }
+        let allInside=true; for(const p of pixels){ const nr=p.r+dr,nc=p.c+dc; if(nr>=0&&nr<gridHeight&&nc>=0&&nc<gridSize) pd[nr][nc]=p.color; else allInside=false; }
         if(!allInside) showToast('部分像素超出画布被裁剪'); selection.row1+=dr; selection.col1+=dc; selection.row2+=dr; selection.col2+=dc; renderAll();
     }
 
     canvas.addEventListener('mousedown', e => {
         e.preventDefault(); const cell=getCell(e); if(!cell) return;
+        if(importing){ if(e.button===0){ const p=toCanvasPx(e); impPan=true; impPanStart={px:p.x,py:p.y,tx:impTx,ty:impTy}; } return; }
         if(selectMode){
-            if(selection&&cell.row>=selection.row1&&cell.row<=selection.row2&&cell.col>=selection.col1&&cell.col<=selection.col2){ isMovingSelection=true; moveStartCell=cell; saveState(); }
-            else { clearSelection(); selection={row1:cell.row,col1:cell.col,row2:cell.row,col2:cell.col}; renderCurrentFrame(); }
+            if(e.button===2){ clearSelection(); return; }   // 右键 = 取消选择
+            if(selection&&cell.row>=selection.row1&&cell.row<=selection.row2&&cell.col>=selection.col1&&cell.col<=selection.col2){
+                // 在选中区域内按下：开始移动，记录原像素快照用于实时预览
+                isMovingSelection=true; moveStartCell=cell; saveState();
+                const pd=getCurrentFrame().pixelData, {row1,col1,row2,col2}=selection, pixels=[];
+                for(let r=row1;r<=row2;r++) for(let c=col1;c<=col2;c++) if(pd[r][c]!==WHITE) pixels.push({r,c,color:pd[r][c]});
+                moveSnapshot={pixels,row1,col1,row2,col2};
+            } else {
+                // 在选区外按下：开始新的框选（抬起结束）
+                selection=null; isMovingSelection=false; moveStartCell=null; moveSnapshot=null;
+                selection={row1:cell.row,col1:cell.col,row2:cell.row,col2:cell.col}; isMarquee=true; renderCurrentFrame();
+            }
             return;
         }
         drawMode=e.button===2?'erase':'draw'; saveState(); isDrawing=true; lastCell=null; handleDraw(cell);
     });
     canvas.addEventListener('mousemove', e => {
         const cell=getCell(e);
+        if(importing){ if(impPan&&impPanStart){ const p=toCanvasPx(e); impTx=impPanStart.tx+(p.x-impPanStart.px)/cellSize; impTy=impPanStart.ty+(p.y-impPanStart.py)/cellSize; renderCurrentFrame(); } return; }
         if(selectMode){
-            if(isMovingSelection&&moveStartCell&&cell){ const dr=cell.row-moveStartCell.row,dc=cell.col-moveStartCell.col; renderCurrentFrame(); if(selection){ const {row1,col1,row2,col2}=selection; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.setLineDash([4,2]); ctx.strokeRect((col1+dc)*cellSize,(row1+dr)*cellSize,(col2-col1+1)*cellSize,(row2-row1+1)*cellSize); ctx.setLineDash([]); } }
-            else if(selection&&!isMovingSelection&&cell){ selection.row2=cell.row; selection.col2=cell.col; renderCurrentFrame(); }
+            if(isMovingSelection&&moveStartCell&&cell&&moveSnapshot){
+                // 实时预览：擦除原位，在光标处重画像素 + 虚线框
+                const dr=cell.row-moveStartCell.row, dc=cell.col-moveStartCell.col;
+                renderCurrentFrame();
+                const {row1,col1,row2,col2}=moveSnapshot;
+                ctx.clearRect(col1*cellSize,row1*cellSize,(col2-col1+1)*cellSize,(row2-row1+1)*cellSize);
+                for(const p of moveSnapshot.pixels){
+                    const nr=p.r+dr,nc=p.c+dc;
+                    if(nr>=0&&nr<gridHeight&&nc>=0&&nc<gridSize){ ctx.fillStyle=`rgb(${(p.color>>16)&0xFF},${(p.color>>8)&0xFF},${p.color&0xFF})`; ctx.fillRect(nc*cellSize,nr*cellSize,cellSize,cellSize); }
+                }
+                ctx.strokeStyle='#7c8cf8'; ctx.lineWidth=2; ctx.setLineDash([4,2]);
+                ctx.strokeRect((col1+dc)*cellSize,(row1+dr)*cellSize,(col2-col1+1)*cellSize,(row2-row1+1)*cellSize); ctx.setLineDash([]);
+            }
+            else if(isMarquee&&selection&&cell){ selection.row2=cell.row; selection.col2=cell.col; renderCurrentFrame(); }
             hoverPos=cell; statusCoords.textContent=cell?`坐标: ${cell.col},${cell.row}`:'坐标: — , —'; return;
         }
         if(cell){ if(!hoverPos||hoverPos.row!==cell.row||hoverPos.col!==cell.col){ hoverPos=cell; renderCurrentFrame(); statusCoords.textContent=`坐标: ${cell.col},${cell.row}`; } }
@@ -704,9 +863,17 @@ class ByteWriter {
         if(isDrawing) handleDraw(cell);
     });
     window.addEventListener('mouseup', e => {
+        if(importing){ impPan=false; impPanStart=null; return; }
         if(selectMode){
-            if(isMovingSelection&&selection&&moveStartCell){ const cell=getCell(e); if(cell){ const dr=cell.row-moveStartCell.row,dc=cell.col-moveStartCell.col; if(dr||dc) moveSelectedPixels(dr,dc); } isMovingSelection=false; moveStartCell=null; renderAll(); }
-            else if(selection&&!isMovingSelection){ if(selection.row1===selection.row2&&selection.col1===selection.col2) clearSelection(); else { selection=normalizeSelection(selection.row1,selection.col1,selection.row2,selection.col2); renderCurrentFrame(); } }
+            if(isMovingSelection&&moveStartCell){
+                const cell=getCell(e);
+                if(cell){ const dr=cell.row-moveStartCell.row,dc=cell.col-moveStartCell.col; if(dr||dc) moveSelectedPixels(dr,dc); }
+                isMovingSelection=false; moveStartCell=null; moveSnapshot=null; renderAll();
+            }
+            else if(isMarquee&&selection){
+                selection=normalizeSelection(selection.row1,selection.col1,selection.row2,selection.col2);
+                isMarquee=false; renderCurrentFrame();
+            }
             return;
         }
         if(isDrawing){ isDrawing=false; lastCell=null; drawMode='draw'; }
@@ -718,22 +885,24 @@ class ByteWriter {
 
     btnSelectMode.onclick = () => {
         selectMode=!selectMode; btnSelectMode.style.background=selectMode?'var(--accent)':''; btnSelectMode.style.color=selectMode?'#fff':'';
-        clearSelection(); showToast(selectMode?'框选模式：拖拽框选，再拖拽选区移动':'退出选择模式');
+        clearSelection(); showToast(selectMode?'选择模式：左键拖拽=框选(抬起结束)；选中区内左键拖拽=移动像素':'退出选择模式');
     };
 
     function updateZoom(){ canvasInner.style.transform=`scale(${zoomLevel})`; zoomSlider.value=zoomLevel; zoomLabel.textContent=zoomLevel.toFixed(2)+'x'; canvasScroll.scrollTop=0; canvasScroll.scrollLeft=0; }
     zoomSlider.oninput=()=>{ zoomLevel=parseFloat(zoomSlider.value); updateZoom(); };
     document.getElementById('zoomReset').onclick=()=>{ zoomLevel=1; updateZoom(); };
-    canvasScroll.addEventListener('wheel', e=>{ if(e.ctrlKey){ e.preventDefault(); zoomLevel=Math.min(5,Math.max(1,zoomLevel+(e.deltaY>0?-0.25:0.25))); updateZoom(); } });
+    canvasScroll.addEventListener('wheel', e=>{
+        if(importing){ e.preventDefault(); if(!impImg) return; const p=toCanvasPx(e);
+            const f=e.deltaY>0?0.9:1.1, ns=Math.max(0.05,Math.min(10,impScale*f));
+            const cx=(p.x/cellSize-impTx)/impScale, cy=(p.y/cellSize-impTy)/impScale;
+            impScale=ns; impTx=p.x/cellSize-cx*ns; impTy=p.y/cellSize-cy*ns;
+            impScaleSlider.value=Math.round(ns*100); impScaleLabel.textContent=Math.round(ns*100)+'%';
+            renderCurrentFrame(); return;
+        }
+        if(e.ctrlKey){ e.preventDefault(); zoomLevel=Math.min(5,Math.max(1,zoomLevel+(e.deltaY>0?-0.25:0.25))); updateZoom(); }
+    });
 
-    function updateColorUI(){ document.querySelectorAll('.color-swatch:not(.eraser)').forEach(s=>{ const c=s.dataset.color.toUpperCase(); s.style.display=(bwMode&&c!=='#000000'&&c!=='#FFFFFF')?'none':''; }); }
-    btnMode.onclick = () => {
-        bwMode=!bwMode; btnMode.textContent=bwMode?'🖤 黑白模式':'🎨 彩色模式'; updateColorUI();
-        if(bwMode){ currentColor=BLACK; document.getElementById('customColor').value='#000000'; }
-        updateStatus(); renderAll(); showToast(bwMode?'黑白模式':'彩色模式');
-    };
-    document.querySelectorAll('.color-swatch').forEach(s=>{ s.onclick=()=>{ let hex=s.dataset.color; currentColor=parseInt(hex.slice(1),16); document.getElementById('customColor').value=hex; document.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('active')); s.classList.add('active'); }; });
-    document.getElementById('customColor').oninput=function(){ currentColor=parseInt(this.value.slice(1),16); document.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('active')); const match=document.querySelector(`.color-swatch[data-color="${this.value.toUpperCase()}"]`); if(match) match.classList.add('active'); };
+    document.querySelectorAll('.color-swatch').forEach(s=>{ s.onclick=()=>{ let hex=s.dataset.color; currentColor=parseInt(hex.slice(1),16); document.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('active')); s.classList.add('active'); }; });
 
     function updateBitOrderUI(){ btnBitOrder.textContent=msbFirst?'位序: MSB':'位序: LSB'; statusBitOrder.textContent=msbFirst?'位序: MSB':'位序: LSB'; }
     btnBitOrder.onclick=()=>{ msbFirst=!msbFirst; updateBitOrderUI(); showToast(msbFirst?'已切换为MSB':'已切换为LSB'); };
@@ -748,10 +917,10 @@ class ByteWriter {
                 decoder.decode();
                 const newFrames = [];
                 for (let i = 0; i < decoder.frames.length; i++) {
-                    const imgData = decoder.getFrameImageData(i, gridSize, gridSize);
+                    const imgData = decoder.getFrameImageData(i, gridSize, gridHeight);
                     if (!imgData) continue;
-                    const pd = Array.from({length: gridSize}, () => new Array(gridSize).fill(WHITE));
-                    for (let y = 0; y < gridSize; y++) {
+                    const pd = Array.from({length: gridHeight}, () => new Array(gridSize).fill(WHITE));
+                    for (let y = 0; y < gridHeight; y++) {
                         for (let x = 0; x < gridSize; x++) {
                             const idx = (y * gridSize + x) * 4;
                             const r = imgData.data[idx];
@@ -776,27 +945,7 @@ class ByteWriter {
                 }
             } else {
                 const img = new Image();
-                img.onload = () => {
-                    const off = document.createElement('canvas');
-                    off.width = gridSize; off.height = gridSize;
-                    const octx = off.getContext('2d');
-                    octx.imageSmoothingEnabled = false;
-                    octx.drawImage(img, 0, 0, gridSize, gridSize);
-                    const imgData = octx.getImageData(0, 0, gridSize, gridSize);
-                    const pd = Array.from({length: gridSize}, () => new Array(gridSize).fill(WHITE));
-                    for (let y = 0; y < gridSize; y++) {
-                        for (let x = 0; x < gridSize; x++) {
-                            const idx = (y * gridSize + x) * 4;
-                            const r = imgData.data[idx], g = imgData.data[idx + 1], b = imgData.data[idx + 2], a = imgData.data[idx + 3];
-                            if (a > 128) pd[y][x] = applyBwFilter((r << 16) | (g << 8) | b);
-                        }
-                    }
-                    frames = [{pixelData: pd}];
-                    historyStacks = [{undoStack: [], redoStack: []}];
-                    currentFrameIdx = 0;
-                    renderAll();
-                    showToast('图片已导入');
-                };
+                img.onload = () => startImportPreview(img);
                 img.src = URL.createObjectURL(file);
             }
         };
@@ -809,54 +958,36 @@ class ByteWriter {
     }
 
     document.getElementById('btnImportCArray').onclick = () => {
-        const text = prompt('粘贴C数组 (支持多帧，RGB值或黑白十六进制字节):');
+        const text = prompt('粘贴C数组 (黑白十六进制字节):');
         if (!text) return;
         const macroW = text.match(/#define\s+WIDTH\s+(\d+)/i), macroH = text.match(/#define\s+HEIGHT\s+(\d+)/i), macroF = text.match(/#define\s+FRAME_COUNT\s+(\d+)/i);
-        const newW = macroW ? parseInt(macroW[1]) : gridSize, newH = macroH ? parseInt(macroH[1]) : gridSize;
+        const newW = macroW ? parseInt(macroW[1]) : gridSize, newH = macroH ? parseInt(macroH[1]) : gridHeight;
         const expectedFrames = macroF ? parseInt(macroF[1]) : null;
-        if (newW !== gridSize || newH !== gridSize) {
-            if (confirm(`C数组定义尺寸为 ${newW}×${newH}，当前画布为 ${gridSize}×${gridSize}。是否调整画布尺寸并导入数据？`)) {
-                gridSize = newW; cellSize = 512 / gridSize; canvas.width = canvas.height = 512; initFrames(); sizeSelect.value = gridSize;
+        if (newW !== gridSize || newH !== gridHeight) {
+            if (confirm(`C数组定义尺寸为 ${newW}×${newH}，当前画布为 ${gridSize}×${gridHeight}。是否调整画布尺寸并导入数据？`)) {
+                gridSize = newW; gridHeight = newH; cellSize = 512 / gridSize; updateCanvasSize(); initFrames();
+                sizeSelect.value = (gridSize===128 && gridHeight===64) ? '128x64' : ((gridSize===64 && gridHeight===32) ? '64x32' : gridSize);
             } else { showToast('导入取消'); return; }
         }
         const cleanText = text.replace(/#define\s+.*/g, '');
-        if (bwMode && /0x[0-9a-fA-F]{2}/.test(cleanText)) {
-            const hexMatches = cleanText.match(/0x[0-9a-fA-F]{2}/g); if (!hexMatches) return showToast('未检测到十六进制字节');
-            const bytes = hexMatches.map(h => parseInt(h, 16)); const bytesPerFrame = Math.ceil(gridSize * gridSize / 8);
-            const numFrames = expectedFrames || Math.floor(bytes.length / bytesPerFrame); if (bytes.length < numFrames * bytesPerFrame) return showToast('数据不足');
-            const newFrames = [];
-            for (let f = 0; f < numFrames; f++) {
-                const pd = Array.from({length: gridSize}, () => new Array(gridSize).fill(WHITE)); let bitIdx = 0;
-                for (let bIdx = f * bytesPerFrame; bIdx < (f+1)*bytesPerFrame && bIdx < bytes.length; bIdx++) {
-                    const b = bytes[bIdx];
-                    for (let bitInByte = 0; bitInByte < 8; bitInByte++) {
-                        if (bitIdx >= gridSize * gridSize) break;
-                        const y = Math.floor(bitIdx / gridSize), x = bitIdx % gridSize;
-                        const bitVal = msbFirst ? (b >> (7 - bitInByte)) & 1 : (b >> bitInByte) & 1;
-                        pd[y][x] = bitVal ? BLACK : WHITE; bitIdx++;
-                    }
-                }
-                newFrames.push({pixelData: pd});
-            }
-            frames = newFrames; historyStacks = newFrames.map(() => ({undoStack:[], redoStack:[]})); currentFrameIdx = 0; renderAll(); showToast(`已导入 ${numFrames} 帧黑白位图`);
-            return;
-        }
-        const numbers = cleanText.match(/[0-9a-fA-Fx]+/g); if (!numbers) return showToast('未识别到数字');
-        const parsed = numbers.map(n => parseInt(n, n.startsWith('0x')||n.startsWith('0X')?16:10));
-        const totalPixels = gridSize * gridSize; const valuesPerFrame = bwMode ? totalPixels : totalPixels * 3;
-        let numFrames = expectedFrames || Math.floor(parsed.length / valuesPerFrame); if (numFrames < 1) numFrames = 1;
-        if (parsed.length < numFrames * valuesPerFrame) return showToast('数据不足');
+        const hexMatches = cleanText.match(/0x[0-9a-fA-F]{2}/g); if (!hexMatches) return showToast('未检测到十六进制字节');
+        const bytes = hexMatches.map(h => parseInt(h, 16)); const bytesPerFrame = Math.ceil(gridSize * gridHeight / 8);
+        const numFrames = expectedFrames || Math.floor(bytes.length / bytesPerFrame); if (bytes.length < numFrames * bytesPerFrame) return showToast('数据不足');
         const newFrames = [];
         for (let f = 0; f < numFrames; f++) {
-            const pd = Array.from({length: gridSize}, () => new Array(gridSize).fill(WHITE));
-            if (bwMode) {
-                for (let i = 0; i < totalPixels; i++) { const val = parsed[f * totalPixels + i]; const y = Math.floor(i / gridSize), x = i % gridSize; pd[y][x] = val ? BLACK : WHITE; }
-            } else {
-                for (let i = 0; i < totalPixels; i++) { const base = (f * totalPixels + i) * 3; const r = parsed[base], g = parsed[base+1], b = parsed[base+2]; const y = Math.floor(i / gridSize), x = i % gridSize; pd[y][x] = applyBwFilter((r<<16)|(g<<8)|b); }
+            const pd = Array.from({length: gridHeight}, () => new Array(gridSize).fill(WHITE)); let bitIdx = 0;
+            for (let bIdx = f * bytesPerFrame; bIdx < (f+1)*bytesPerFrame && bIdx < bytes.length; bIdx++) {
+                const b = bytes[bIdx];
+                for (let bitInByte = 0; bitInByte < 8; bitInByte++) {
+                    if (bitIdx >= gridSize * gridHeight) break;
+                    const y = Math.floor(bitIdx / gridSize), x = bitIdx % gridSize;
+                    const bitVal = msbFirst ? (b >> (7 - bitInByte)) & 1 : (b >> bitInByte) & 1;
+                    pd[y][x] = bitVal ? BLACK : WHITE; bitIdx++;
+                }
             }
             newFrames.push({pixelData: pd});
         }
-        frames = newFrames; historyStacks = newFrames.map(() => ({undoStack:[], redoStack:[]})); currentFrameIdx = 0; renderAll(); showToast(`已导入 ${numFrames} 帧`);
+        frames = newFrames; historyStacks = newFrames.map(() => ({undoStack:[], redoStack:[]})); currentFrameIdx = 0; renderAll(); showToast(`已导入 ${numFrames} 帧黑白位图`);
     };
 
     function downloadBlob(blob, name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url); }
@@ -875,14 +1006,14 @@ class ByteWriter {
         }
     }
 
-    function getOffscreenCanvas(){ const c=document.createElement('canvas'); c.width=gridSize; c.height=gridSize; const ctx=c.getContext('2d'); const pd=getCurrentFrame().pixelData; const imgData=ctx.createImageData(gridSize,gridSize); for(let y=0;y<gridSize;y++) for(let x=0;x<gridSize;x++){ const col=pd[y][x]; const i=(y*gridSize+x)*4; imgData.data[i]=(col>>16)&0xFF; imgData.data[i+1]=(col>>8)&0xFF; imgData.data[i+2]=col&0xFF; imgData.data[i+3]=255; } ctx.putImageData(imgData,0,0); return c; }
+    function getOffscreenCanvas(){ const c=document.createElement('canvas'); c.width=gridSize; c.height=gridHeight; const ctx=c.getContext('2d'); const pd=getCurrentFrame().pixelData; const imgData=ctx.createImageData(gridSize,gridHeight); for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){ const col=pd[y][x]; const i=(y*gridSize+x)*4; imgData.data[i]=(col>>16)&0xFF; imgData.data[i+1]=(col>>8)&0xFF; imgData.data[i+2]=col&0xFF; imgData.data[i+3]=255; } ctx.putImageData(imgData,0,0); return c; }
     document.getElementById('btnExportPNG').onclick=()=>{ getOffscreenCanvas().toBlob(b=>downloadBlob(b,'frame.png')); showToast('PNG 已导出'); };
     document.getElementById('btnExportJPEG').onclick=()=>{ getOffscreenCanvas().toBlob(b=>downloadBlob(b,'frame.jpg','image/jpeg'),'image/jpeg',0.92); showToast('JPEG 已导出'); };
-    document.getElementById('btnExportBMP').onclick=()=>{ const w=gridSize,h=gridSize,rowSize=w*3,padding=(4-(rowSize%4))%4,dataSize=(rowSize+padding)*h,fileSize=54+dataSize,buf=new ArrayBuffer(fileSize),view=new DataView(buf); let off=0; view.setUint8(off++,0x42); view.setUint8(off++,0x4D); view.setUint32(off,fileSize,1); off+=4; view.setUint16(off,0,1); off+=2; view.setUint16(off,0,1); off+=2; view.setUint32(off,54,1); off+=4; view.setUint32(off,40,1); off+=4; view.setInt32(off,w,1); off+=4; view.setInt32(off,h,1); off+=4; view.setUint16(off,1,1); off+=2; view.setUint16(off,24,1); off+=2; view.setUint32(off,0,1); off+=4; view.setUint32(off,dataSize,1); off+=4; view.setInt32(off,2835,1); off+=4; view.setInt32(off,2835,1); off+=4; view.setUint32(off,0,1); off+=4; view.setUint32(off,0,1); off+=4; const pd=getCurrentFrame().pixelData; for(let y=h-1;y>=0;y--) for(let x=0;x<w;x++){ const c=pd[y][x]; view.setUint8(off++,c&0xFF); view.setUint8(off++,(c>>8)&0xFF); view.setUint8(off++,(c>>16)&0xFF); } for(let p=0;p<padding;p++) view.setUint8(off++,0); downloadBlob(new Blob([buf],{type:'image/bmp'}),'frame.bmp'); showToast('BMP 已导出'); };
+    document.getElementById('btnExportBMP').onclick=()=>{ const w=gridSize,h=gridHeight,rowSize=w*3,padding=(4-(rowSize%4))%4,dataSize=(rowSize+padding)*h,fileSize=54+dataSize,buf=new ArrayBuffer(fileSize),view=new DataView(buf); let off=0; view.setUint8(off++,0x42); view.setUint8(off++,0x4D); view.setUint32(off,fileSize,1); off+=4; view.setUint16(off,0,1); off+=2; view.setUint16(off,0,1); off+=2; view.setUint32(off,54,1); off+=4; view.setUint32(off,40,1); off+=4; view.setInt32(off,w,1); off+=4; view.setInt32(off,h,1); off+=4; view.setUint16(off,1,1); off+=2; view.setUint16(off,24,1); off+=2; view.setUint32(off,0,1); off+=4; view.setUint32(off,dataSize,1); off+=4; view.setInt32(off,2835,1); off+=4; view.setInt32(off,2835,1); off+=4; view.setUint32(off,0,1); off+=4; view.setUint32(off,0,1); off+=4; const pd=getCurrentFrame().pixelData; for(let y=h-1;y>=0;y--) for(let x=0;x<w;x++){ const c=pd[y][x]; view.setUint8(off++,c&0xFF); view.setUint8(off++,(c>>8)&0xFF); view.setUint8(off++,(c>>16)&0xFF); } for(let p=0;p<padding;p++) view.setUint8(off++,0); downloadBlob(new Blob([buf],{type:'image/bmp'}),'frame.bmp'); showToast('BMP 已导出'); };
 
     document.getElementById('btnExportGIF').onclick=()=>{
         if (frames.length === 0) { showToast('无帧可导出'); return; }
-        const encoder = new GIFEncoder(gridSize, gridSize);
+        const encoder = new GIFEncoder(gridSize, gridHeight);
         encoder.loopCount = 0;
         const delay = Math.floor(1000 / fps);
         for (const f of frames) {
@@ -894,41 +1025,28 @@ class ByteWriter {
     };
 
     function getBitPackBytes(pixelData){
-        const totalBits=gridSize*gridSize; const bytes=Math.ceil(totalBits/8); const arr=new Uint8Array(bytes); let bitIdx=0;
-        for(let y=0;y<gridSize;y++) for(let x=0;x<gridSize;x++){ const byteIdx=Math.floor(bitIdx/8),bitPos=bitIdx%8; if(pixelData[y][x]!==WHITE){ if(msbFirst) arr[byteIdx]|=(1<<(7-bitPos)); else arr[byteIdx]|=(1<<bitPos); } bitIdx++; }
+        const totalBits=gridSize*gridHeight; const bytes=Math.ceil(totalBits/8); const arr=new Uint8Array(bytes); let bitIdx=0;
+        for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){ const byteIdx=Math.floor(bitIdx/8),bitPos=bitIdx%8; if(pixelData[y][x]!==WHITE){ if(msbFirst) arr[byteIdx]|=(1<<(7-bitPos)); else arr[byteIdx]|=(1<<bitPos); } bitIdx++; }
         return {arr,bytes};
     }
 
     function generateCArrayForFrame() {
-        let macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridSize}\n`;
-        if(bwMode){
-            const pd=getCurrentFrame().pixelData; const {arr,bytes}=getBitPackBytes(pd);
-            let text = macro + `const unsigned char bitmap[WIDTH * HEIGHT / 8] = {\n  `;
-            for(let i=0;i<bytes;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytes-1) text+=', '; if(i%16===15) text+='\n  '; } text+='\n};';
-            return text;
-        } else {
-            const pd=getCurrentFrame().pixelData;
-            let text=macro+'const unsigned char frame[HEIGHT][WIDTH][3] = {\n';
-            for(let y=0;y<gridSize;y++){ const row=[]; for(let x=0;x<gridSize;x++){ const c=pd[y][x]; row.push('{'+((c>>16)&0xFF)+','+((c>>8)&0xFF)+','+(c&0xFF)+'}'); } text+='  {'+row.join(',')+'}'+(y<gridSize-1?',\n':'\n'); } text+='};';
-            return text;
-        }
+        const macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridHeight}\n`;
+        const pd=getCurrentFrame().pixelData; const {arr,bytes}=getBitPackBytes(pd);
+        let text = macro + `const unsigned char bitmap[WIDTH * HEIGHT / 8] = {\n  `;
+        for(let i=0;i<bytes;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytes-1) text+=', '; if(i%16===15) text+='\n  '; } text+='\n};';
+        return text;
     }
 
     function generateCArrayAllFrames(){
-        let macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridSize}\n#define FRAME_COUNT ${frames.length}\n`;
-        if(bwMode){
-            const totalBits=gridSize*gridSize; const bytesPerFrame=Math.ceil(totalBits/8);
-            let text = macro + `const unsigned char animation[FRAME_COUNT][WIDTH * HEIGHT / 8] = {\n`;
-            frames.forEach((f,fi)=>{ const {arr}=getBitPackBytes(f.pixelData); text+='  {';
-                for(let i=0;i<bytesPerFrame;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytesPerFrame-1) text+=','; }
-                text+='}'+(fi < frames.length-1 ? ',\n' : '\n');
-            }); text+='};';
-            return text;
-        } else {
-            let text=macro+'const unsigned char animation[FRAME_COUNT][HEIGHT][WIDTH][3] = {\n';
-            frames.forEach((f,fi)=>{ text+='  {\n'; for(let y=0;y<gridSize;y++){ const row=[]; for(let x=0;x<gridSize;x++){ const c=f.pixelData[y][x]; row.push('{'+((c>>16)&0xFF)+','+((c>>8)&0xFF)+','+(c&0xFF)+'}'); } text+='    {'+row.join(',')+'}'+(y<gridSize-1?',\n':'\n'); } text+='  }'+(fi<frames.length-1?',\n':'\n'); }); text+='};';
-            return text;
-        }
+        const macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridHeight}\n#define FRAME_COUNT ${frames.length}\n`;
+        const totalBits=gridSize*gridHeight; const bytesPerFrame=Math.ceil(totalBits/8);
+        let text = macro + `const unsigned char animation[FRAME_COUNT][WIDTH * HEIGHT / 8] = {\n`;
+        frames.forEach((f,fi)=>{ const {arr}=getBitPackBytes(f.pixelData); text+='  {';
+            for(let i=0;i<bytesPerFrame;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytesPerFrame-1) text+=','; }
+            text+='}'+(fi < frames.length-1 ? ',\n' : '\n');
+        }); text+='};';
+        return text;
     }
 
     document.getElementById('btnExportCArr').onclick = () => {
@@ -950,10 +1068,163 @@ class ByteWriter {
         copyToClipboard(text, '全部帧数组已复制');
     };
 
+    // ===================== PXA 文本格式（git 分享/预览） =====================
+    // 说明: ; 开头为元数据/帧分隔行；像素行用 #=已绘制(黑) .=空白(白)，每行恰好 W 字符
+    function pxaEncode(){
+        const lines=[';PXA v1', `;W=${gridSize} H=${gridHeight} F=${frames.length} FPS=${fps} LOOP=${loop?1:0}`, `;NAME=${animName.value||'animation'}`];
+        frames.forEach((f,fi)=>{
+            lines.push(`;---- FRAME ${fi} ----`);
+            for(let y=0;y<gridHeight;y++){
+                let row='';
+                for(let x=0;x<gridSize;x++) row += (f.pixelData[y][x]!==WHITE)?'#':'.';
+                lines.push(row);
+            }
+        });
+        return lines.join('\n');
+    }
+    function pxaDecode(text){
+        let version=null, meta={}, cur=null, frameRows=[];
+        for(const raw of text.split(/\r?\n/)){
+            const line=raw.trimEnd();
+            if(line==='') continue;
+            if(line.startsWith(';')){
+                if(/^;PXA\s+v?1\b/i.test(line)){ version=1; continue; }
+                if(line.indexOf(';---- FRAME')===0){ if(cur) frameRows.push(cur); cur=[]; continue; }
+                const body=line.slice(1);
+                for(const kv of body.split(/\s+/)){ const m=kv.match(/^([A-Za-z]+)=(.+)$/); if(m) meta[m[1].toLowerCase()]=m[2]; }
+                continue;
+            }
+            if(cur===null) cur=[];   // 无帧分隔时默认累计
+            cur.push(line);
+        }
+        if(cur) frameRows.push(cur);
+        if(version!==1) throw new Error('不是 PXA v1 文件');
+        const W=parseInt(meta.w), H=parseInt(meta.h);
+        if(!W||!H||W<1||H<1) throw new Error('缺少或无效的尺寸');
+        const out=[];
+        for(const rows of frameRows){
+            const pd=Array.from({length:H},()=>new Array(W).fill(WHITE));
+            for(let y=0;y<H&&y<rows.length;y++){
+                const row=rows[y];
+                for(let x=0;x<W&&x<row.length;x++) if(row[x]==='#') pd[y][x]=BLACK;
+            }
+            out.push({pixelData:pd});
+        }
+        if(out.length===0) throw new Error('没有帧数据');
+        return {frames:out, W, H, fps:(parseInt(meta.fps)||12), loop:(meta.loop==='1'), name:meta.name||''};
+    }
+    document.getElementById('btnImportPXA').onclick=()=>{
+        const text=prompt('粘贴 PXA 文本:');
+        if(!text) return;
+        try{
+            const r=pxaDecode(text);
+            if(r.W!==gridSize||r.H!==gridHeight){
+                if(!confirm(`PXA 尺寸为 ${r.W}×${r.H}，当前画布 ${gridSize}×${gridHeight}。调整为 PXA 尺寸并导入？`)) return;
+                gridSize=r.W; gridHeight=r.H; cellSize=512/gridSize; updateCanvasSize();
+                sizeSelect.value=(gridSize===128&&gridHeight===64)?'128x64':((gridSize===64&&gridHeight===32)?'64x32':gridSize);
+            }
+            frames=r.frames; historyStacks=frames.map(()=>({undoStack:[],redoStack:[]})); currentFrameIdx=0;
+            fps=r.fps; loop=r.loop;
+            document.getElementById('fpsSlider').value=fps; document.getElementById('fpsLabel').textContent=fps;
+            document.getElementById('loopCheck').checked=loop;
+            if(r.name) animName.value=r.name;
+            renderAll(); showToast(`已导入 PXA (${frames.length}帧 ${r.W}×${r.H})`);
+        }catch(e){ showToast('PXA 导入失败: '+e.message); }
+    };
+    document.getElementById('btnExportPXA').onclick=()=>{
+        const text=pxaEncode();
+        downloadBlob(new Blob([text],{type:'text/plain'}), (animName.value||'animation')+'.pxa');
+        showToast('PXA 已导出');
+    };
+
+    // ===================== 导入预览（等比 + 缩放/移动 + 填充/轮廓） =====================
+    const importBar=document.getElementById('importBar'), impScaleSlider=document.getElementById('impScale');
+    const impScaleLabel=document.getElementById('impScaleLabel'), impModeSel=document.getElementById('impMode');
+    const impThreshSlider=document.getElementById('impThresh'), impThreshLabel=document.getElementById('impThreshLabel'), impThreshVal=document.getElementById('impThreshVal');
+
+    function startImportPreview(img){
+        importing=true; impImg=img; impMode='fill'; impThresh=128;
+        const fit=Math.min(gridSize/img.naturalWidth, gridHeight/img.naturalHeight);
+        impScale=fit; impTx=(gridSize-img.naturalWidth*fit)/2; impTy=(gridHeight-img.naturalHeight*fit)/2;
+        importBar.style.display='flex'; impScaleSlider.value=Math.round(fit*100);
+        impScaleLabel.textContent=Math.round(fit*100)+'%';
+        impModeSel.value='fill'; impThreshLabel.textContent='阈值';
+        impThreshSlider.value=128; impThreshVal.textContent='128';
+        renderCurrentFrame();
+        showToast('拖动=移动 · 滚轮=缩放 · 应用=写入当前帧');
+    }
+    function impFit(){
+        if(!impImg) return;
+        const fit=Math.min(gridSize/impImg.naturalWidth, gridHeight/impImg.naturalHeight);
+        impScale=fit; impTx=(gridSize-impImg.naturalWidth*fit)/2; impTy=(gridHeight-impImg.naturalHeight*fit)/2;
+        impScaleSlider.value=Math.round(fit*100); impScaleLabel.textContent=Math.round(fit*100)+'%';
+        renderCurrentFrame();
+    }
+    function impSample(gray,x,y){ if(x<0||x>=gridSize||y<0||y>=gridHeight) return 0; return gray[y*gridSize+x]; }
+    function importApply(){
+        if(!impImg) return;
+        const oc=document.createElement('canvas'); oc.width=gridSize; oc.height=gridHeight;
+        const octx=oc.getContext('2d');
+        octx.imageSmoothingEnabled=true;
+        octx.drawImage(impImg, impTx, impTy, impImg.naturalWidth*impScale, impImg.naturalHeight*impScale);
+        const d=octx.getImageData(0,0,gridSize,gridHeight).data;
+        const n=gridSize*gridHeight, gray=new Float32Array(n), alpha=new Uint8Array(n);
+        for(let i=0;i<n;i++){
+            alpha[i]=d[i*4+3];
+            gray[i]= alpha[i]>16 ? (d[i*4]*0.299+d[i*4+1]*0.587+d[i*4+2]*0.114) : 255;  // 空白按白计
+        }
+        saveState();
+        const pd=getCurrentFrame().pixelData;
+        if(impMode==='fill'){
+            for(let i=0;i<n;i++){ const y=Math.floor(i/gridSize),x=i%gridSize; pd[y][x]=(alpha[i]>16&&gray[i]<impThresh)?BLACK:WHITE; }
+        } else if(impMode==='adaptive'){
+            // 自适应阈值(局部均值 - C)：内部有明暗/深浅变化时按局部对比度区分成黑白
+            const bs=Math.max(3, Math.round(Math.min(gridSize,gridHeight)/6)|1), half=(bs-1)>>1;
+            const W2=gridSize+1, H2=gridHeight+1, integ=new Float64Array(W2*H2);
+            for(let y=0;y<gridHeight;y++){
+                let row=0;
+                for(let x=0;x<gridSize;x++){ row+=gray[y*gridSize+x]; integ[(y+1)*W2+(x+1)]=integ[y*W2+(x+1)]+row; }
+            }
+            for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){
+                const i=y*gridSize+x;
+                if(alpha[i]<=16){ pd[y][x]=WHITE; continue; }
+                const x0=Math.max(0,x-half),x1=Math.min(gridSize-1,x+half),y0=Math.max(0,y-half),y1=Math.min(gridHeight-1,y+half);
+                const area=(x1-x0+1)*(y1-y0+1);
+                const sum=integ[(y1+1)*W2+(x1+1)]-integ[y0*W2+(x1+1)]-integ[(y1+1)*W2+x0]+integ[y0*W2+x0];
+                pd[y][x]=(gray[i] < sum/area - impThresh)?BLACK:WHITE;
+            }
+        } else {
+            for(let y=0;y<gridHeight;y++) for(let x=0;x<gridSize;x++){
+                const i=y*gridSize+x;
+                if(alpha[i]<=16){ pd[y][x]=WHITE; continue; }
+                const gx=impSample(gray,x-1,y+1)+2*impSample(gray,x,y+1)+impSample(gray,x+1,y+1)
+                        -impSample(gray,x-1,y-1)-2*impSample(gray,x,y-1)-impSample(gray,x+1,y-1);
+                const gy=impSample(gray,x+1,y-1)+2*impSample(gray,x+1,y)+impSample(gray,x+1,y+1)
+                        -impSample(gray,x-1,y-1)-2*impSample(gray,x-1,y)-impSample(gray,x-1,y+1);
+                pd[y][x]=(Math.sqrt(gx*gx+gy*gy)>impThresh)?BLACK:WHITE;
+            }
+        }
+        importCancel(); renderAll(); showToast('已写入当前帧');
+    }
+    function importCancel(){
+        importing=false; impImg=null; impPan=false; impPanStart=null;
+        importBar.style.display='none'; renderCurrentFrame();
+    }
+    document.getElementById('btnImpApply').onclick=importApply;
+    document.getElementById('btnImpCancel').onclick=importCancel;
+    document.getElementById('btnImpFit').onclick=impFit;
+    impScaleSlider.oninput=function(){ if(!impImg) return; const ns=Math.max(0.05,parseInt(this.value)/100), cx=(gridSize/2-impTx)/impScale, cy=(gridHeight/2-impTy)/impScale; impScale=ns; impTx=gridSize/2-cx*impScale; impTy=gridHeight/2-cy*impScale; impScaleLabel.textContent=Math.round(ns*100)+'%'; renderCurrentFrame(); };
+    impModeSel.onchange=function(){ impMode=this.value;
+        if(impMode==='fill'){ impThresh=128; impThreshLabel.textContent='阈值'; }
+        else if(impMode==='edge'){ impThresh=60; impThreshLabel.textContent='边缘敏感'; }
+        else { impThresh=15; impThreshLabel.textContent='局部对比'; }
+        impThreshSlider.value=impThresh; impThreshVal.textContent=impThresh; };
+    impThreshSlider.oninput=function(){ impThresh=parseInt(this.value); impThreshVal.textContent=impThresh; };
+
     document.getElementById('btnRefImage').onclick=()=> document.getElementById('refFileInput').click();
     document.getElementById('refFileInput').onchange = function(e){
         const file=e.target.files[0]; if(!file) return; const reader=new FileReader();
-        reader.onload=ev=>{ refBgImg.src=ev.target.result; refBgImg.style.display='block'; refControls.style.display='flex'; refOpacity=0.3; refOpacityInput.value=0.3; refOpacityLabel.textContent='30%'; refBgImg.style.opacity=refOpacity; showToast('参考图已设置'); };
+        reader.onload=ev=>{ refBgImg.src=ev.target.result; refBgImg.style.display='block'; refControls.style.display='flex'; refOpacity=0.4; refOpacityInput.value=0.4; refOpacityLabel.textContent='40%'; refBgImg.style.opacity=refOpacity; renderCurrentFrame(); showToast('参考图已设置'); };
         reader.readAsDataURL(file); this.value='';
     };
     refOpacityInput.oninput = function(){ refOpacity=parseFloat(this.value); refOpacityLabel.textContent=Math.round(refOpacity*100)+'%'; refBgImg.style.opacity=refOpacity; };
@@ -976,13 +1247,256 @@ class ByteWriter {
     document.getElementById('btnPlay').onclick=()=>{ if(playing){ clearInterval(playTimer); playTimer=null; playing=false; document.getElementById('btnPlay').textContent='▶ 播放'; } else { if(frames.length<=1) return showToast('至少2帧'); playing=true; document.getElementById('btnPlay').textContent='⏸ 暂停'; let idx=currentFrameIdx; playTimer=setInterval(()=>{ idx=(idx+1)%frames.length; if(idx===0&&!loop){ clearInterval(playTimer); playing=false; document.getElementById('btnPlay').textContent='▶ 播放'; idx=frames.length-1; } if(playing) switchFrame(idx); },1000/fps); } };
     document.getElementById('fpsSlider').oninput=function(){ fps=parseInt(this.value); document.getElementById('fpsLabel').textContent=fps; if(playing){ clearInterval(playTimer); document.getElementById('btnPlay').click(); } };
     document.getElementById('loopCheck').onchange=function(){ loop=this.checked; };
-    sizeSelect.onchange=()=> resizeAllFrames(parseInt(sizeSelect.value));
+    sizeSelect.onchange=()=>{
+        const v=sizeSelect.value, m=v.match(/^(\d+)x(\d+)$/);
+        if(m) resizeAllFrames(parseInt(m[1]),parseInt(m[2]));
+        else resizeAllFrames(parseInt(v),parseInt(v));
+    };
 
     function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1500); }
 
-    initFrames(); updateZoom(); updateColorUI(); updateBitOrderUI();
+    // ===================== AIMonitor 设备控制（Web Serial） =====================
+    const $id=el=>document.getElementById(el);
+    const logArea=$id('logArea'), connDot=$id('connDot'), connBtn=$id('btnConnect');
+    const baudSelect=$id('baudSelect'), serialPorts=$id('serialPorts'), animName=$id('animName');
+    const streamBtn=$id('btnStreamToggle');
+    let port=null, reader=null, writer=null, devConnected=false, devStreaming=false;
+    let lineBuf='', devDecoder=new TextDecoder();
+    let pending=[];
+    let streamTimer=null, streamSeq=0, streamBusy=false, lastProgLog=0;
+
+    function logLine(text, cls){
+        const d=document.createElement('div'); d.className='log-line '+(cls||''); d.textContent=text;
+        logArea.appendChild(d); logArea.scrollTop=logArea.scrollHeight;
+        while(logArea.childNodes.length>80) logArea.removeChild(logArea.firstChild);
+    }
+    function updateDevUI(){
+        connBtn.textContent = devConnected ? '🔌 断开' : '🔌 连接';
+        connDot.className = 'conn-dot' + (devStreaming ? ' streaming' : (devConnected ? ' on' : ''));
+        streamBtn.classList.toggle('on', devStreaming);
+        streamBtn.textContent = devStreaming ? '⏹ 流式预览' : '🔴 流式预览';
+    }
+    function crc32(buf){
+        let crc=0xFFFFFFFF;
+        for(let i=0;i<buf.length;i++){
+            let c=(crc^buf[i])&0xFF;
+            for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+            crc=(crc>>>8)^c;
+        }
+        return (crc^0xFFFFFFFF)>>>0;
+    }
+    // 帧数据(画布 gridSize×gridHeight) -> 设备 128x64 XBM(1024B)，等比缩放并居中
+    // 设备显示为 LSB 位序：字节 bit0 = 最左像素
+    function frameToDeviceBytes(pd){
+        const W=128,H=64,out=new Uint8Array(W*H/8);
+        const scale=Math.min(W/gridSize,H/gridHeight);
+        const dw=Math.max(1,Math.round(gridSize*scale)), dh=Math.max(1,Math.round(gridHeight*scale));
+        const ox=Math.floor((W-dw)/2), oy=Math.floor((H-dh)/2);
+        for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+            const sx=Math.floor((x-ox)/scale), sy=Math.floor((y-oy)/scale);
+            if(sx>=0&&sx<gridSize&&sy>=0&&sy<gridHeight&&pd[sy][sx]!==WHITE) out[(y*W+x)>>3]|=1<<(x&7);
+        }
+        return out;
+    }
+    // 构造 .anm：ANM0 头 + fps + 帧数(LE) + 保留 + 每帧1024B
+    function buildAnm(fpsv){
+        const n=frames.length, size=8+n*1024, out=new Uint8Array(size);
+        out[0]=0x41; out[1]=0x4E; out[2]=0x4D; out[3]=0x30;
+        out[4]=fpsv&0xFF; out[5]=n&0xFF; out[6]=(n>>8)&0xFF; out[7]=0;
+        let off=8;
+        for(const f of frames){ out.set(frameToDeviceBytes(f.pixelData), off); off+=1024; }
+        return out;
+    }
+    function encodePacket(obj, payload){
+        const head=new TextEncoder().encode(JSON.stringify(obj)+'\n');
+        if(!payload) return head;
+        const out=new Uint8Array(head.length+payload.length); out.set(head,0); out.set(payload,head.length); return out;
+    }
+    function request(obj, payload, expects, timeoutMs){
+        expects=expects||['ack']; timeoutMs=timeoutMs||4000;
+        return new Promise((resolve,reject)=>{
+            const p={resolve,reject,expects};
+            p.t=setTimeout(()=>{ const i=pending.indexOf(p); if(i>=0)pending.splice(i,1); reject(new Error('超时: '+obj.cmd)); },timeoutMs);
+            pending.push(p);
+            (async()=>{ try{ await writer.write(encodePacket(obj,payload)); }catch(e){ const i=pending.indexOf(p); if(i>=0)pending.splice(i,1); clearTimeout(p.t); reject(e); } })();
+        });
+    }
+    function nackText(code){ return {1:'未知命令',2:'参数错误',3:'文件不存在',4:'CRC校验失败',5:'存储已满'}[code]||'未知错误码'; }
+    function handleLine(line){
+        let obj; try{ obj=JSON.parse(line); }catch(e){ logLine('< '+line,'raw'); return; }
+        const resp=obj.resp;
+        if(resp==='progress'){ if(Date.now()-lastProgLog>1000){ logLine('< progress seq='+obj.seq,'rx'); lastProgLog=Date.now(); } return; }
+        // nack 按顺序属于最近发送的命令（同一时刻仅一个在途请求）；其余按 expects 匹配
+        const pi = (resp==='nack') ? (pending.length?0:-1) : pending.findIndex(p=>p.expects.includes(resp));
+        if(pi>=0 && pending[pi]){ const p=pending.splice(pi,1)[0]; clearTimeout(p.t);
+            logLine('< '+line, resp==='nack'?'err':'rx');
+            if(resp==='nack') p.reject(new Error('设备错误码 '+obj.code+' ('+nackText(obj.code)+')')); else p.resolve(obj);
+        } else logLine('< '+line,'rx');
+    }
+    async function readLoop(){
+        try{
+            while(port&&reader){
+                const {value,done}=await reader.read();
+                if(done) break;
+                if(value){ lineBuf+=devDecoder.decode(value,{stream:true});
+                    let idx;
+                    while((idx=lineBuf.indexOf('\n'))>=0){ const l=lineBuf.slice(0,idx).trim(); lineBuf=lineBuf.slice(idx+1); if(l) handleLine(l); }
+                }
+            }
+        }catch(e){ if(devConnected) logLine('读取错误: '+e.message,'err'); }
+        if(devConnected){ devConnected=false; devStreaming=false; if(streamTimer){clearInterval(streamTimer);streamTimer=null;} updateDevUI(); logLine('串口已断开','warn'); }
+    }
+    async function openPort(p){
+        await p.open({baudRate:parseInt(baudSelect.value)});
+        port=p; reader=port.readable.getReader(); writer=port.writable.getWriter();
+        devConnected=true; lineBuf=''; devDecoder=new TextDecoder();
+        updateDevUI(); logLine('已连接 @'+baudSelect.value,'ok'); readLoop();
+    }
+    connBtn.onclick=async()=>{
+        if(devConnected){ stopStream(); await disconnectSerial(); return; }
+        try{
+            if(!('serial' in navigator)){ logLine('此浏览器不支持 Web Serial，请用 Chrome/Edge 在 localhost 下打开','err'); return; }
+            const sel=serialPorts.value;
+            if(sel && serialPorts.selectedOptions[0].__port){ await openPort(serialPorts.selectedOptions[0].__port); }
+            else{ const p=await navigator.serial.requestPort(); await openPort(p); updatePortList(); }
+        }catch(e){ if(e&&e.name==='NotFoundError') logLine('未选择端口','warn'); else logLine('连接失败: '+(e&&e.message||e),'err'); }
+    };
+    async function disconnectSerial(){
+        try{
+            if(reader){ try{ await reader.cancel(); }catch(e){} reader=null; }
+            if(writer){ try{ writer.releaseLock(); }catch(e){} writer=null; }
+            if(port){ try{ await port.close(); }catch(e){} port=null; }
+        }catch(e){}
+        devConnected=false; updateDevUI(); logLine('已断开','warn');
+    }
+    async function updatePortList(){
+        serialPorts.innerHTML='';
+        if(!('serial' in navigator)){ const o=document.createElement('option'); o.textContent='不支持 Web Serial'; serialPorts.appendChild(o); return; }
+        try{
+            const ports=await navigator.serial.getPorts();
+            if(ports.length===0){ const o=document.createElement('option'); o.textContent='选择端口…'; serialPorts.appendChild(o); return; }
+            for(const p of ports){
+                const info=p.getInfo();
+                const o=document.createElement('option');
+                o.textContent=(info.usbVendorId?('USB 0x'+(info.usbVendorId.toString(16).padStart(4,'0'))+':'+(info.usbProductId.toString(16).padStart(4,'0'))):'串口');
+                o.__port=p; serialPorts.appendChild(o);
+            }
+        }catch(e){ const o=document.createElement('option'); o.textContent='读取端口失败'; serialPorts.appendChild(o); }
+    }
+    async function requireDev(){ if(!devConnected){ logLine('请先连接设备','warn'); return false; } return true; }
+    $id('btnUpload').onclick=async()=>{
+        if(!(await requireDev())) return;
+        if(devStreaming) stopStream();
+        const name=(animName.value||'editor.anm').trim(), fpsv=fps;
+        let data;
+        try{ data=buildAnm(fpsv); }
+        catch(e){ logLine('构造 .anm 失败: '+e.message,'err'); showToast('上传失败'); return; }
+        for(let attempt=1; attempt<=2; attempt++){
+            if(attempt>1) logLine('>> 第 '+attempt+' 次尝试…','warn');
+            try{
+                logLine('>> ping 握手（确认设备就绪）…');
+                await request({cmd:'ping'},null,['pong'],5000);
+                logLine('>> up_begin '+name+' size='+data.length);
+                const ready=await request({cmd:'up_begin',name,size:data.length},null,['ready'],6000);
+                let off=ready.off||0;
+                if(off>0) logLine('>> 检测到已有 '+off+'B，断点续传','warn');
+                let lastLog=0;
+                while(off<data.length){
+                    const piece=data.slice(off,Math.min(off+2048,data.length));
+                    await request({cmd:'up_chunk',off,size:piece.length},piece,['ack'],10000);
+                    off+=piece.length;
+                    if(off-lastLog>=16384){ logLine('   已上传 '+off+'/'+data.length+'B'); lastLog=off; }
+                }
+                const crc=crc32(data);
+                logLine('>> up_end crc='+crc);
+                await request({cmd:'up_end',crc},null,['done'],20000);
+                logLine('上传完成 ✓ '+name+'（'+frames.length+'帧 @'+fpsv+'fps）','ok');
+                showToast('动画已上传 '+name);
+                return;
+            }catch(e){
+                logLine('第 '+attempt+' 次上传失败: '+e.message,'err');
+                if(attempt===2){
+                    if(/错误码 4/.test(e.message)) logLine('提示: CRC失败，可再次上传','warn');
+                    if(/错误码 5/.test(e.message)) logLine('提示: 存储不足，先 🗑 删除旧动画或查看 🔄 状态 空间','warn');
+                    if(/错误码 2|超时/.test(e.message)) logLine('提示: 多为高速丢字节，设备已自动复位，直接再点上传即可','warn');
+                    showToast('上传失败');
+                }
+            }
+        }
+    };
+    $id('btnSendFrame').onclick=async()=>{
+        if(!(await requireDev())) return;
+        const d=frameToDeviceBytes(getCurrentFrame().pixelData);
+        try{ await request({cmd:'show',seq:currentFrameIdx,size:1024},d,['ack'],5000); logLine('已发送当前帧 #'+currentFrameIdx,'ok'); }
+        catch(e){ logLine('发送失败: '+e.message,'err'); }
+    };
+    $id('btnDevicePlay').onclick=async()=>{
+        if(!(await requireDev())) return;
+        if(devStreaming) stopStream();
+        const name=(animName.value||'editor.anm').trim();
+        try{ await request({cmd:'play',name,fps:0,loop:1},null,['state','ack'],5000); logLine('▶ 设备播放 '+name,'ok'); }
+        catch(e){ logLine(e.message,'err'); }
+    };
+    $id('btnDeviceStop').onclick=async()=>{
+        if(!(await requireDev())) return;
+        try{ await request({cmd:'stop'},null,['state','ack'],5000); logLine('⏹ 已停止','warn'); }
+        catch(e){ logLine(e.message,'err'); }
+    };
+    $id('btnRefresh').onclick=async()=>{
+        if(!(await requireDev())) return;
+        try{
+            const p=await request({cmd:'ping'},null,['pong'],5000);
+            const s=await request({cmd:'status'},null,['state'],5000);
+            let lst='';
+            try{ const l=await request({cmd:'list'},null,['list'],5000); lst='  动画: '+(l.anims&&l.anims.length?l.anims.join(', '):'(空)'); }catch(e){}
+            logLine(`固件 ${p.fw} proto ${p.proto} 可用 ${p.fs_free}/${p.fs_total}B | 状态 ${s.state} ${s.name||''}${lst}`,'ok');
+        }catch(e){ logLine(e.message,'err'); }
+    };
+    $id('btnDelete').onclick=async()=>{
+        if(!(await requireDev())) return;
+        const name=(animName.value||'editor.anm').trim();
+        if(!confirm('删除设备中的 '+name+' ？')) return;
+        try{ await request({cmd:'delete',name},null,['ack'],5000); logLine('已删除 '+name,'ok'); showToast('已删除 '+name); }
+        catch(e){ logLine('删除失败: '+e.message,'err'); }
+    };
+    streamBtn.onclick=async()=>{
+        if(!(await requireDev())) return;
+        if(devStreaming){ stopStream(); return; }
+        if(frames.length<2) return logLine('至少 2 帧才能流式预览','warn');
+        try{
+            if(streamTimer){ clearInterval(streamTimer); streamTimer=null; }
+            streamBusy=false;
+            // 先 stop 复位设备到空闲，同时作为握手确认链路通畅
+            logLine('>> stop 复位…');
+            await request({cmd:'stop'},null,['state','ack'],6000);
+            devStreaming=true; streamSeq=0; updateDevUI();
+            await request({cmd:'stream_start',fps,loop:1},null,['state','ready'],10000);
+            logLine('▶ 流式预览 '+fps+'fps','ok');
+            streamTimer=setInterval(()=>{ sendStreamFrame(); }, 1000/fps);
+        }catch(e){ devStreaming=false; updateDevUI(); logLine(e.message,'err'); }
+    };
+    function stopStream(){
+        devStreaming=false;
+        if(streamTimer){ clearInterval(streamTimer); streamTimer=null; }
+        updateDevUI();
+        if(devConnected) request({cmd:'stream_end'},null,['done','ack'],3000).catch(()=>{});
+        logLine('⏹ 流式预览结束','warn');
+    }
+    async function sendStreamFrame(){
+        if(!devStreaming || streamBusy) return;   // 上一帧未完成则跳过，避免堆积
+        streamBusy=true;
+        const f=frames[streamSeq%frames.length];
+        const d=frameToDeviceBytes(f.pixelData);
+        try{ await request({cmd:'frame',seq:streamSeq,size:1024},d,['ack'],5000); streamSeq++; }
+        catch(e){ stopStream(); }
+        finally{ streamBusy=false; }
+    }
+    function initDevice(){ updatePortList(); updateDevUI(); }
+    window.addEventListener('beforeunload',()=>{ if(devStreaming) stopStream(); });
+
+    initFrames(); updateZoom(); updateBitOrderUI();
     document.querySelector('.color-swatch[data-color="#000000"]').classList.add('active');
-    renderAll(); showToast('🎨 编辑器就绪 (黑白/LSB)');
+    renderAll(); initDevice(); showToast('🎨 编辑器就绪 (黑白/LSB)');
 })();
 </script>
 </body>
