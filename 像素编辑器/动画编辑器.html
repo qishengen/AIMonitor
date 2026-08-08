@@ -960,7 +960,7 @@ class ByteWriter {
     document.getElementById('btnImportCArray').onclick = () => {
         const text = prompt('粘贴C数组 (黑白十六进制字节):');
         if (!text) return;
-        const macroW = text.match(/#define\s+WIDTH\s+(\d+)/i), macroH = text.match(/#define\s+HEIGHT\s+(\d+)/i), macroF = text.match(/#define\s+FRAME_COUNT\s+(\d+)/i);
+        const macroW = text.match(/#define\s+(?:IDLE_ANIM_W|WIDTH)\s+(\d+)/i), macroH = text.match(/#define\s+(?:IDLE_ANIM_H|HEIGHT)\s+(\d+)/i), macroF = text.match(/#define\s+(?:IDLE_ANIM_FRAME_COUNT|FRAME_COUNT)\s+(\d+)/i);
         const newW = macroW ? parseInt(macroW[1]) : gridSize, newH = macroH ? parseInt(macroH[1]) : gridHeight;
         const expectedFrames = macroF ? parseInt(macroF[1]) : null;
         if (newW !== gridSize || newH !== gridHeight) {
@@ -1030,22 +1030,42 @@ class ByteWriter {
         return {arr,bytes};
     }
 
+    function formatBytesHex(arr, bytesPerLine=8, indent='  '){
+        let out='';
+        for(let i=0;i<arr.length;i++){
+            if(i % bytesPerLine === 0) out += indent;
+            out += '0x'+arr[i].toString(16).padStart(2,'0').toUpperCase();
+            if((i+1)%bytesPerLine===0) out += ',\n';
+            else out += ', ';
+        }
+        return out;
+    }
+
+    function cHeaderPrelude(w,h,frameCount){
+        let s = '#pragma once\n#include <stdint.h>\n\n';
+        s += `#define IDLE_ANIM_W ${w}\n#define IDLE_ANIM_H ${h}\n`;
+        if(frameCount) s += `#define IDLE_ANIM_FRAME_COUNT ${frameCount}\n`;
+        s += '\n// 设备显示为 LSB 位序：字节 bit0 = 最左像素\n';
+        return s;
+    }
+
     function generateCArrayForFrame() {
-        const macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridHeight}\n`;
-        const pd=getCurrentFrame().pixelData; const {arr,bytes}=getBitPackBytes(pd);
-        let text = macro + `const unsigned char bitmap[WIDTH * HEIGHT / 8] = {\n  `;
-        for(let i=0;i<bytes;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytes-1) text+=', '; if(i%16===15) text+='\n  '; } text+='\n};';
+        const pd=getCurrentFrame().pixelData; const {arr}=getBitPackBytes(pd);
+        let text = cHeaderPrelude(gridSize, gridHeight, 0);
+        text += `const unsigned char idle_anim[IDLE_ANIM_W * IDLE_ANIM_H / 8] = {\n`;
+        text += formatBytesHex(arr);
+        text += '};\n';
         return text;
     }
 
     function generateCArrayAllFrames(){
-        const macro=`#define WIDTH ${gridSize}\n#define HEIGHT ${gridHeight}\n#define FRAME_COUNT ${frames.length}\n`;
-        const totalBits=gridSize*gridHeight; const bytesPerFrame=Math.ceil(totalBits/8);
-        let text = macro + `const unsigned char animation[FRAME_COUNT][WIDTH * HEIGHT / 8] = {\n`;
-        frames.forEach((f,fi)=>{ const {arr}=getBitPackBytes(f.pixelData); text+='  {';
-            for(let i=0;i<bytesPerFrame;i++){ text+='0x'+arr[i].toString(16).padStart(2,'0').toUpperCase(); if(i<bytesPerFrame-1) text+=','; }
-            text+='}'+(fi < frames.length-1 ? ',\n' : '\n');
-        }); text+='};';
+        let text = cHeaderPrelude(gridSize, gridHeight, frames.length);
+        text += `const unsigned char idle_anim[IDLE_ANIM_FRAME_COUNT][IDLE_ANIM_W * IDLE_ANIM_H / 8] = {\n`;
+        frames.forEach((f,fi)=>{ const {arr}=getBitPackBytes(f.pixelData);
+            text += `  {  // frame ${fi}\n`;
+            text += formatBytesHex(arr, 8, '    ');
+            text += (fi < frames.length-1) ? '  },\n' : '  }\n';
+        }); text += '};\n';
         return text;
     }
 
