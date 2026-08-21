@@ -1,6 +1,8 @@
 # AIMonitor 串口协议完整规范 (PROTOCOL)
 
-> 版本: v1.0 ｜ 日期: 2026-08-08 ｜ 实现: `Code/AIMonitor/protocol.cpp`（固件端）+ `Code/host/protocol.py`（上位机端）
+> 版本: v1.2 ｜ 日期: 2026-08-21 ｜ 实现: `Code/AIMonitor/protocol.cpp`（协议层）+ `Code/AIMonitor/transport.cpp`（通信层）+ `Code/host/protocol.py`（上位机端）
+> v1.2 变更：通信层/协议层分层重构（transport.cpp 管字节收发，protocol.cpp 管命令语义）；回包路由改为**命令应答回源 + 异步事件广播**；新增 `home`/`reset`/`factory`/`wifi_reconnect` 命令；Web 门户升级为控制面板（`/status` `/cmd`）；FW 升至 1.3.0。
+> v1.1 变更：新增 WiFi TCP 通路（:8088）、Web 配网（:80）、`wifi`/`wifi_status` 命令、`ping` 回包增加 `ip` 字段；FW 升至 1.2.0。
 
 本文档为协议权威参考。数据来源：`protocol.cpp` 实际实现、`DESIGN.md`、`DEV_CONTEXT.md`。
 
@@ -10,14 +12,19 @@
 
 | 项 | 值 |
 |---|---|
-| 传输介质 | 串口 UART（默认 921600 baud，可配） |
+| 传输介质 | 串口 UART（默认 921600 baud，可配）+ **TCP Server（默认 :8088）**，双通道共用同一协议状态机 |
 | 编码 | UTF-8 文本，一包一行 |
 | 包分隔 | `\n`（LF） |
 | 数据体 | 原始二进制（默认）或 base64 内嵌（`"enc":"b64"`）双模式 |
 | JSON 能力 | 单层解析，value 仅支持字符串/整数，未知字段忽略 |
-| 协议版本 | `proto = 1`，固件 `fw = "1.1.0"` |
+| 协议版本 | `proto = 1`，固件 `fw = "1.3.2"` |
+| Web 控制面板 | HTTP :80（`GET /` 面板、`/status` 快照、`/cfg`、`/scan`；`POST /save`、`/cmd`），非协议端口，见 `webcfg.cpp` |
 
 接收端资源：行缓冲 256B、串口环形缓冲 8192B、数据批写 256B/批、收包不完整超时 1s（超时复位并回 `nack(2)`，防止卡死）。
+
+**分层架构（FW 1.3.0）**：`transport.cpp`（通信层）统一收串口/TCP/Web 字节并组装帧，`protocol.cpp`（协议层）只做命令语义。回包路由：
+- **命令应答**（ack/nack/ready/done/state/list/pong/wifi）→ **只回请求来源**（串口命令回串口、TCP 命令回对应客户端、Web 操作回 HTTP 响应体）
+- **异步事件**（progress/done 播放上报）→ **广播**到串口 + 所有 TCP 客户端
 
 ---
 
@@ -72,7 +79,7 @@ from protocol import Link, SerialTransport
 import serial
 mon_link = Link(SerialTransport(serial.Serial("COM5", 921600, timeout=0)))
 print(mon_link.request({"cmd":"ping"}, expect=("pong",)))
-# {"resp":"pong","fw":"1.1.0","proto":1,"fs_total":2981888,"fs_free":2800000}
+# {"resp":"pong","fw":"1.3.2","proto":1,"ip":"192.168.4.1","fs_total":2981888,"fs_free":2800000}
 ```
 
 ---
@@ -109,6 +116,25 @@ resp = mon_link.request({"cmd":"status"}, expect=("state",))
 ```python
 mon_link.request({"cmd":"stop"}, expect=("state","ack"))
 # {"resp":"state","state":"idle","name":"","seq":0}
+```
+
+---
+
+#### home — 播放内置主页动画
+
+```json
+{"cmd":"home"}
+```
+
+- 参数：无
+- 成功回包：`state`（`state:"home"`，seq:0）
+- 失败回包：无
+- 特性：播放内置 64x64 主页动画（`idle_anim.h`，循环），直到 `stop`/`show`/`play`/`stream` 打断；Web 控制面板「主页动画」按钮即发此命令
+
+**demo**
+```python
+mon_link.request({"cmd":"home"}, expect=("state",))
+# {"resp":"state","state":"home","name":"","seq":0}
 ```
 
 ---
@@ -356,6 +382,126 @@ mon_link.request(
 
 ---
 
+### 3.5 网络配置类
+
+#### wifi — 配置/切换 WiFi 模式（持久化 + 即时生效）
+
+```json
+{"cmd":"wifi","mode":"sta","ssid":"MyWiFi","pass":"12345678"}
+{"cmd":"wifi","mode":"ap+sta","port":9000}
+```
+
+- 参数：`mode`(ap|sta|ap+sta)、`ssid`、`pass`、`port`(1..65535) 均可选，未下发字段保持原配置
+- 成功回包：`ack`（**先回包后应用**：应用配置会短暂断开当前 TCP 连接）
+- 失败回包：`nack(2)` 参数错
+- 特性：写入 LittleFS `/wifi.cfg` 持久化并即时生效；重启仍生效。`ap` 且 ssid 留空时热点名自动为 `AIMonitor-<chipid>`；STA 可配静态 IP（`/wifi.cfg` 手改 ip/gw/mask）。**AP 热点密码独立**（空=开放，≥8 位=WPA2，见 `ap_pass` 命令）；`pass` 仅用于 STA 连路由器，不作用于热点。客户端上限 8（`WiFi.softAP(...,max_connection=8)`）。**回包后延迟 ~100ms 应用**（`g_reapply_at`，串口/TCP/Web 各通道先收到 ack）。
+- 同功能也可用 Web 配网完成：浏览器打开 `http://<设备IP>`（:80）
+
+**demo**
+```python
+mon_link.request({"cmd":"wifi","mode":"sta","ssid":"MyWiFi","pass":"12345678"})
+# {"resp":"ack"}
+```
+
+---
+
+#### ap_pass — 设置/清除 AP 热点密码
+
+```json
+{"cmd":"ap_pass","pass":"12345678"}   # 设置（≥8 位，WPA2）
+{"cmd":"ap_pass","pass":""}            # 清除（热点开放）
+```
+
+- 参数：`pass` 必填；空字符串=开放热点，≥8 位=启用 WPA2，长度 1~7 返回 `nack(2)`
+- 成功回包：`ack`（先回包后延迟 ~100ms 应用）
+- 失败回包：`nack(2)` 缺 pass 或长度 1~7
+- 特性：持久化到 `/wifi.cfg` 并即时生效；与 STA 密码独立（STA 密码不作用于热点）；**串口/TCP/Web 三通道统一走协议分发**（Web 控制面板配网表单「AP 热点密码」字段同功能）；待机屏 `PASS` 行实时显示。
+
+**demo**
+```python
+mon_link.request({"cmd":"ap_pass","pass":"12345678"})
+# {"resp":"ack"}
+```
+
+---
+
+#### wifi_status — 查询当前 WiFi 状态
+
+```json
+{"cmd":"wifi_status"}
+```
+
+- 参数：无
+- 成功回包：`{"resp":"wifi","mode":"sta","ssid":"MyWiFi","ip":"192.168.1.50","port":8088,"clients":1,"sta":1}`
+- 失败回包：无
+- 字段：`mode` 当前模式、`ssid`（ap 模式留空=自动热点名）、`ip` 设备 IP、`port` TCP 端口、`clients` 已连接 TCP 客户端数、`sta` 是否已连上路由器
+
+**demo**
+```python
+resp = mon_link.request({"cmd":"wifi_status"}, expect=("wifi",))
+# {"resp":"wifi","mode":"ap+sta","ssid":"MyWiFi","ip":"192.168.1.50","port":8088,"clients":1,"sta":1}
+```
+
+---
+
+### 3.6 设备管理类
+
+#### wifi_reconnect — 用已存配置重新连接 WiFi
+
+```json
+{"cmd":"wifi_reconnect"}
+```
+
+- 参数：无
+- 成功回包：`ack`（回包后延迟 ~100ms 再应用，保证 Web 请求方收到响应）
+- 失败回包：无
+- 特性：等价于重读 `/wifi.cfg` 并 `net_apply()`；Web 控制面板「重连WiFi」按钮即发此命令
+
+**demo**
+```python
+mon_link.request({"cmd":"wifi_reconnect"})
+# {"resp":"ack"}
+```
+
+---
+
+#### reset — 重启设备
+
+```json
+{"cmd":"reset"}
+```
+
+- 参数：无
+- 成功回包：`ack`（回包后延迟 ~300ms 再重启，保证响应发出）
+- 失败回包：无
+
+**demo**
+```python
+mon_link.request({"cmd":"reset"})
+# {"resp":"ack"}  之后设备重启
+```
+
+---
+
+#### factory — 恢复出厂（清配网 + 重启）
+
+```json
+{"cmd":"factory"}
+```
+
+- 参数：无
+- 成功回包：`ack`（回包后延迟 ~300ms 再重启）
+- 失败回包：无
+- 特性：删除 `/wifi.cfg` 并重启，回到默认 AP 热点模式（`AIMonitor-<chipid>`，:80 配网门户可用）
+
+**demo**
+```python
+mon_link.request({"cmd":"factory"})
+# {"resp":"ack"}  之后设备重启回默认 AP
+```
+
+---
+
 ## 4. 设备 → PC 回包表
 
 | 回包 | JSON | 含义 |
@@ -364,9 +510,10 @@ mon_link.request(
 | nack | `{"resp":"nack","code":n}` | 失败（见 §5） |
 | ready | `{"resp":"ready","off":4096}` | 上传/流就绪，off 为续传起点 |
 | done | `{"resp":"done"}` | 上传完成/流结束 |
-| progress | `{"resp":"progress","seq":30,"fps":24}` | 播放进度（播放中周期上报） |
-| state | `{"resp":"state","state":"play","name":"x.anm","seq":10}` | 状态查询/变更结果 |
-| pong | `{"resp":"pong","fw":"1.1.0","proto":1,"fs_total":2981888,"fs_free":2800000}` | ping 响应 |
+| progress | `{"resp":"progress","seq":30,"fps":24}` | 播放进度（播放中周期上报，**广播**） |
+| state | `{"resp":"state","state":"play","name":"x.anm","seq":10}` | 状态查询/变更结果（state 可为 idle/play/stream/home） |
+| pong | `{"resp":"pong","fw":"1.3.2","proto":1,"ip":"192.168.4.1","fs_total":2981888,"fs_free":2800000}` | ping 响应 |
+| wifi | `{"resp":"wifi","mode":"ap+sta","ssid":"MyWiFi","ip":"192.168.1.50","port":8088,"clients":1,"sta":1}` | wifi_status 响应 |
 | list | `{"resp":"list","anims":["a.anm","b.anm"]}` | list 响应 |
 
 > 回包同样是 `\n` 结尾的一行 JSON。上位机在等待某期望回包期间会**忽略** `progress`/`state` 等非期望回包（`protocol.py Link.request`）。
@@ -412,3 +559,7 @@ mon_link.request(
 6. **stream 结束方式**：给 `total` 则收满自动结束；否则必须发 `stream_end`。
 7. **transmit 不自动播放**：保存后需手动 `play`。
 8. **上位机实现速查**：`Code/host/protocol.py`（`encode_packet`/`Link.request`）、`Code/host/aimonitor.py`（高层 API 已封装全部命令）。
+9. **TCP 通路（FW 1.2.0）**：协议 TCP Server 默认 `:8088`；`protocol.py` 提供 `TcpTransport`/`connect_tcp(host, port)`，`Link`/`AIMonitor` 无需改动。**FW 1.3.0 起回包路由**：命令应答只回请求来源，异步事件（progress/done）广播到串口 + 所有 TCP 客户端。
+10. **单数据流限制**：串口与 TCP 共享同一协议状态机，`show/frame/up_chunk/transmit` 带数据体命令同一时刻只允许一个源（双源并发会串包）。Web `:80` 走独立通道（`transport_exec` 同步执行），不受影响。
+11. **Web 控制面板（FW 1.3.0）**：门户在 AP/STA/ap+sta 任何模式均可达；`GET /status` 返回聚合状态快照（网络/存储/播放器/系统），`POST /cmd` 接受 JSON 命令（body 即命令对象），响应体为回包 JSON。
+12. **安全**：TCP 无鉴权即可删/传文件，仅限局域网玩具用途。

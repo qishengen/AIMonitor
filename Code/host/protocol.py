@@ -7,6 +7,7 @@
 """
 import base64
 import json
+import socket
 import time
 
 try:
@@ -74,6 +75,52 @@ class SerialTransport(Transport):
             else:
                 time.sleep(0.001)
         return None
+
+
+class TcpTransport(Transport):
+    """基于 socket 的 TCP 传输（连接固件 TCP server，默认端口 8088）。"""
+
+    def __init__(self, sock):
+        self._sock = sock
+
+    def send(self, data: bytes):
+        self._sock.sendall(data)
+
+    def readline(self, deadline: float):
+        self._sock.setblocking(False)
+        buf = bytearray()
+        while time.time() < deadline:
+            try:
+                c = self._sock.recv(1)
+            except BlockingIOError:
+                time.sleep(0.001)
+                continue
+            except socket.timeout:
+                continue
+            except OSError:
+                return None
+            if not c:
+                return None  # 对端关闭
+            buf += c
+            if c == b"\n":
+                return bytes(buf)
+        return None
+
+    def close(self):
+        try:
+            self._sock.close()
+        except OSError:
+            pass
+
+
+def connect_tcp(host, port=8088, timeout=3.0):
+    """连接固件 TCP server 并返回 Link。host 支持 aimonitor.local / IP。"""
+    sock = socket.create_connection((host, port), timeout=timeout)
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    except OSError:
+        pass
+    return Link(TcpTransport(sock), timeout=timeout)
 
 
 class Link:

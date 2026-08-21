@@ -1,6 +1,7 @@
 ﻿# AIMonitor 需求文档 (REQUIREMENTS)
 
 > 版本: v1.0 ｜ 日期: 2026-08-07 ｜ 状态: 已评审定稿
+> **v1.2 扩展（FW 1.2.0）**：新增 WiFi（AP/STA/AP+STA）、协议 TCP 通路(:8088)、浏览器 Web 配网(:80)、待机 IP 屏。硬件接线现为 SCL=5/SDA=4。非功能指标已放宽：固件目标 <=330KB（WiFi 栈入 Flash，实测 327KB/1MB），RAM 应用缓冲实测 64%（lwip/HTTP 缓冲入堆）。协议细节以 `PROTOCOL.md` 为准。
 
 ## 1. 项目概述
 - **项目名**: AIMonitor

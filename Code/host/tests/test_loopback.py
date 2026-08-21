@@ -71,7 +71,27 @@ def test_encode_packet():
 def test_ping():
     sim, link, mon = new_pair()
     r = mon.ping()
-    assert r["resp"] == "pong" and r["proto"] == 1 and r["fw"] == "1.0.0"
+    assert r["resp"] == "pong" and r["proto"] == 1 and r["fw"] == "1.3.0"
+
+
+def test_home_and_reset_cmds():
+    sim, link, mon = new_pair()
+    r = mon._req({"cmd": "home"}, expect=("state",))
+    assert r["resp"] == "state" and r["state"] == "home"
+    assert mon._req({"cmd": "wifi_reconnect"}).get("resp") == "ack"
+    assert mon._req({"cmd": "reset"}).get("resp") == "ack"
+    assert mon._req({"cmd": "factory"}).get("resp") == "ack"
+
+
+def test_ap_pass_cmd():
+    sim, link, mon = new_pair()
+    # 留空 = 开放热点
+    assert mon._req({"cmd": "ap_pass", "pass": ""}).get("resp") == "ack"
+    # ≥8 位 = 设置 WPA2 密码
+    assert mon._req({"cmd": "ap_pass", "pass": "12345678"}).get("resp") == "ack"
+    # 1~7 位非法
+    r = mon._req({"cmd": "ap_pass", "pass": "short"}, expect=("nack",))
+    assert r.get("code") == 2
 
 
 def test_unknown_cmd():
@@ -216,6 +236,8 @@ def main():
     tests = [
         ("encode_packet", test_encode_packet),
         ("ping", test_ping),
+        ("home/reset/factory/wifi_reconnect", test_home_and_reset_cmds),
+        ("ap_pass set/clear/invalid", test_ap_pass_cmd),
         ("unknown_cmd", test_unknown_cmd),
         ("transmit+list+play+stop", test_transmit_list_play_stop),
         ("play_missing", test_play_missing),

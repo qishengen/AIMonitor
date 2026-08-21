@@ -30,3 +30,4 @@ bool fs_anim_read_frame(uint16_t seq, uint8_t* buf);
 // ---- 管理 ----
 bool fs_delete(const char* name);
 bool fs_list(char* out, int outsz);
+bool fs_list_array(char* out, int outsz);  // 仅输出 .anm 文件名数组 ["a.anm",...]

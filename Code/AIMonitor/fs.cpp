@@ -214,3 +214,25 @@ bool fs_list(char* out, int outsz) {
   out[pos] = 0;
   return true;
 }
+
+bool fs_list_array(char* out, int outsz) {
+  if (outsz <= 0) return false;
+  int pos = snprintf(out, outsz, "[");
+  if (pos < 0 || pos >= outsz) return false;
+  Dir dir = LittleFS.openDir("/");
+  bool first = true;
+  while (dir.next()) {
+    String n = dir.fileName();
+    if (!n.endsWith(".anm")) continue;
+    if (pos >= outsz - 3) break;
+    if (!first) out[pos++] = ',';
+    first = false;
+    int w = snprintf(out + pos, outsz - pos, "\"%s\"", n.c_str());
+    if (w < 0) return false;
+    pos += w;
+    if (pos > outsz - 3) pos = outsz - 3;
+  }
+  out[pos++] = ']';
+  out[pos] = 0;
+  return true;
+}

@@ -8,10 +8,12 @@
 
 enum { ST_IDLE,
        ST_PLAY,
-       ST_STREAM };
+       ST_STREAM,
+       ST_HOME };
 
 static frame_cb render_cb = NULL;
 static event_cb ev_cb = NULL;
+static idle_info_cb idle_info = NULL;
 
 static int st = ST_IDLE;
 static char anim_name[64] = "";
@@ -31,12 +33,20 @@ static bool idle_hold = false;  // show 后暂停，避免覆盖已显帧
 static uint16_t idle_cur = 0;
 static uint32_t idle_next = 0;
 
+// ---- 内置主页动画（home 命令，独立于 IDLE 信息屏） ----
+static uint16_t home_cur = 0;
+static uint32_t home_next = 0;
+
 void player_init(frame_cb render, event_cb ev) {
   render_cb = render;
   ev_cb = ev;
   idle_cur = 0;
   idle_next = 0;  // 首次进入 IDLE 立即上第一帧
   idle_hold = false;
+}
+
+void player_set_idle_info_cb(idle_info_cb cb) {
+  idle_info = cb;
 }
 
 uint8_t* player_recv_buf(void) {
@@ -63,6 +73,7 @@ static void finish_stream(void) {
 }
 
 void player_show_now(const uint8_t* src) {
+  if (st == ST_HOME) st = ST_IDLE;  // home 状态下 show 回到 idle-hold
   if (src != fb[cur ^ 1]) memcpy(fb[cur ^ 1], src, FB_BYTES);
   cur ^= 1;
   if (render_cb) render_cb(fb[cur]);
@@ -102,6 +113,20 @@ void player_stop(void) {
   anim_name[0] = 0;
   pending_frame = false;
   idle_resume();
+}
+
+static void idle_render(uint16_t idx);  // 前置声明（实现位于文件后部）
+
+bool player_play_home(void) {
+  st = ST_HOME;
+  anim_name[0] = 0;
+  home_cur = 0;
+  home_next = 0;
+  idle_hold = false;
+  idle_render(home_cur);
+  home_cur = (uint16_t)((home_cur + 1) % IDLE_ANIM_FRAME_COUNT);
+  home_next = millis() + IDLE_FRAME_MS;
+  return true;
 }
 
 bool player_stream_start(int fpsv, bool lp, int totalv) {
@@ -176,14 +201,28 @@ static void idle_tick(void) {
   if (idle_hold) return;
   uint32_t now = millis();
   if ((int32_t)(now - idle_next) < 0) return;
-  idle_render(idle_cur);
-  idle_cur = (uint16_t)((idle_cur + 1) % IDLE_ANIM_FRAME_COUNT);
+  if (idle_info) {
+    idle_info((idle_cur & 1) != 0);  // 信息屏：每 700ms 重绘，blink 呼吸指示
+    idle_cur++;
+  } else {
+    idle_render(idle_cur);
+    idle_cur = (uint16_t)((idle_cur + 1) % IDLE_ANIM_FRAME_COUNT);
+  }
   idle_next = now + IDLE_FRAME_MS;
+}
+
+static void home_tick(void) {
+  uint32_t now = millis();
+  if ((int32_t)(now - home_next) < 0) return;
+  idle_render(home_cur);
+  home_cur = (uint16_t)((home_cur + 1) % IDLE_ANIM_FRAME_COUNT);
+  home_next = now + IDLE_FRAME_MS;
 }
 
 void player_tick(void) {
   if (st == ST_PLAY) play_tick();
   else if (st == ST_STREAM) stream_tick();
+  else if (st == ST_HOME) home_tick();
   else idle_tick();
 }
 
@@ -191,6 +230,7 @@ const char* player_state_str(void) {
   switch (st) {
     case ST_PLAY: return "play";
     case ST_STREAM: return "stream";
+    case ST_HOME: return "home";
     default: return "idle";
   }
 }

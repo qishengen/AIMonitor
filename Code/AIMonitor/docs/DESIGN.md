@@ -1,6 +1,8 @@
 ﻿# AIMonitor 方案设计文档 (DESIGN)
 
 > 版本: v1.0 ｜ 日期: 2026-08-07 ｜ 状态: 已评审定稿
+> **v1.2 扩展（FW 1.2.0）**：架构上新增 `net`（WiFi + TCP Server :8088 + `/wifi.cfg`）与 `webcfg`（Web 配网 :80）两模块；协议状态机由 `protocol_feed()` 统一喂入串口/TCP 字节，`send()` 广播到串口 + 所有 TCP 客户端。详见 `DEV_CONTEXT.md` §13。
+> **v1.3 扩展（FW 1.3.0）**：通信层/协议层分离 —— `transport`（串口+TCP+Web 统一字节收发/帧组装）与 `protocol`（命令语义）解耦；回包路由改为**命令应答回源 + 异步事件广播**；Web 门户常开并升级为控制面板（`/status`/`/cmd`）；新增 `home`/`reset`/`factory`/`wifi_reconnect` 命令。权威参考以 `PROTOCOL.md` 与 `DEV_CONTEXT.md` 为准。
 
 ## 1. 可行性评估
 | 环节 | 约束 | 结论 |

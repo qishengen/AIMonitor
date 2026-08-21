@@ -1,9 +1,12 @@
 """固件模拟器：在 Python 内复刻固件的协议行为，用于无硬件回环验证上位机。
 
 与 protocol.py 的 SimLink 配合：主机发包 -> sim 解析 -> 产生回包队列。
+也提供 TcpSimServer：把 sim 挂到本地 TCP 端口，模拟固件 TCP server。
 """
 import base64
 import json
+import socket
+import threading
 import zlib
 
 FRAME_BYTES = 1024
@@ -74,13 +77,22 @@ class SimFirmware:
                 self.pending_obj = None
                 self._handle(obj, payload)
 
+    def drain(self):
+        """处理缓冲中所有完整包，直到无可处理（一次 recv 可能含多包）。"""
+        while True:
+            before = len(self.inbuf)
+            self.run_pending()
+            if len(self.inbuf) == before:
+                return
+
     # ---------- 命令处理 ----------
 
     def _handle(self, obj, payload):
         cmd = obj.get("cmd")
         if cmd == "ping":
             self._send({
-                "resp": "pong", "fw": "1.0.0", "proto": 1,
+                "resp": "pong", "fw": "1.3.0", "proto": 1,
+                "ip": "127.0.0.1",
                 "fs_total": 2981888, "fs_free": 2800000,
             })
         elif cmd == "status":
@@ -165,5 +177,88 @@ class SimFirmware:
             name = obj["name"]
             self.fs[name] = bytes(payload)
             self._send({"resp": "done"})
+        elif cmd == "wifi":
+            self._send({"resp": "ack"})
+        elif cmd == "ap_pass":
+            p = obj.get("pass", "")
+            if len(p) > 0 and len(p) < 8:
+                self._send({"resp": "nack", "code": 2})
+            else:
+                self._send({"resp": "ack"})
+        elif cmd == "wifi_status":
+            self._send({
+                "resp": "wifi", "mode": "ap", "ssid": "AIMonitor-sim",
+                "ip": "127.0.0.1", "port": 8088, "clients": 1, "sta": 0,
+            })
+        elif cmd == "home":
+            self.play_state = "home"
+            self._send({"resp": "state", "state": "home", "name": "", "seq": 0})
+        elif cmd == "wifi_reconnect":
+            self._send({"resp": "ack"})
+        elif cmd == "reset" or cmd == "factory":
+            self._send({"resp": "ack"})
         else:
             self._send({"resp": "nack", "code": 1})
+
+
+class TcpSimServer:
+    """把 SimFirmware 挂到本地 TCP 端口，模拟固件 TCP server（无硬件回环）。
+
+    用法：
+        srv = TcpSimServer()          # 随机端口
+        srv.start()
+        host, port = srv.addr()
+        # 客户端用 connect_tcp(host, port) 连接
+        ...
+        srv.stop()
+    """
+
+    def __init__(self, host="127.0.0.1", port=0, sim=None):
+        self.sim = sim or SimFirmware()
+        self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._srv.bind((host, port))
+        self._srv.listen(2)
+        self.host = host
+        self.port = self._srv.getsockname()[1]
+        self._thread = None
+
+    def addr(self):
+        return self.host, self.port
+
+    def start(self):
+        self._thread = threading.Thread(target=self._serve, daemon=True)
+        self._thread.start()
+
+    def _serve(self):
+        while True:
+            try:
+                conn, _ = self._srv.accept()
+            except OSError:
+                return
+            t = threading.Thread(target=self._handle, args=(conn,), daemon=True)
+            t.start()
+
+    def _handle(self, conn):
+        try:
+            while True:
+                data = conn.recv(4096)
+                if not data:
+                    return
+                self.sim.inject(data)
+                self.sim.drain()
+                while True:
+                    line = self.sim.pop_response_line()
+                    if line is None:
+                        break
+                    conn.sendall(line)
+        except OSError:
+            pass
+        finally:
+            conn.close()
+
+    def stop(self):
+        try:
+            self._srv.close()
+        except OSError:
+            pass
