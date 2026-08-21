@@ -84,7 +84,7 @@ ai_stream.py       AI联动示例(占位生成器已改 LSB)
 tcp_test.py        TCP 通路测试 (python tcp_test.py [host] [port] [--sim] [--upload x.anm])，--sim 回环 6/6
 --- 测试 (G:\AIMonitor\Code\host\tests) ---
 sim_firmware.py    固件行为模拟器 + TcpSimServer(挂本地 TCP 端口模拟固件 server) + wifi/wifi_status/home/reset/factory/wifi_reconnect 命令模拟
-test_loopback.py   PC回环自测 14/14 通过 (python test_loopback.py)
+test_loopback.py   PC回环自测 15/15 通过 (python test_loopback.py)
 --- 像素编辑器 (G:\AIMonitor\像素编辑器) ---
 动画编辑器.html    单文件编辑器：黑白像素画/动画 + 设备控制 + PXA + GIF + 导入预览
 动画编辑器需求.md  编辑器需求与版本历史
@@ -127,7 +127,7 @@ arduino-cli compile --fqbn esp8266:esp8266:generic:xtal=160,vt=flash,exception=d
 stacksmash=disabled,ssl=all,mmu=3232,non32xfer=fast,FlashMode=dout,FlashFreq=40,eesz=4M3M,\
 led=2,ip=lm2f,dbg=Disabled,lvl=None____,wipe=none,baud=921600 "G:\AIMonitor\Code\AIMonitor"
 ```
-- 结果: EXITCODE=0（FW 1.3.0）。RAM 55732/80192(69%)；IRAM 60851/65536(92%)；Flash 329796B(31%)。
+- 结果: EXITCODE=0（FW 1.3.2）。RAM 59276/80192(73%)；IRAM 60851/65536(92%)；Flash 330308B(31%)。
 - 依赖: esp8266 core 3.1.2 + U8g2 2.36.19（已装）。
 - 注意: WiFi 栈代码几乎全进 Flash（Flash +~49KB），IRAM 仅 +436B，没爆 92% 上限；RAM +~15KB（lwip/HTTP 缓冲/扫描），heap 缩水，加代码留意。
 - **编译排坑**：本次曾两次 gcc 因临时文件失败（ICE segfault / `error writing to ...\.s`，磁盘充足，疑杀软）。设 `$env:TMP/TEMP` 到干净目录（如 `...\Temp\opencode\cc_tmp`）后正常。
@@ -191,4 +191,4 @@ led=2,ip=lm2f,dbg=Disabled,lvl=None____,wipe=none,baud=921600 "G:\AIMonitor\Code
    - 原有项：`transmit` 60帧 → `play` 循环；`show` 即时；`stream` 24fps 不卡；断线续传 + CRC。
 2. 真机串口 921600，接线 SCL=5/SDA=4（当前 .ino 已配 ESP8266；AIMonitor-32 是旧 ESP32 原型，别混淆）。
 3. 上传 60 帧素材：编辑器画 → 上传；或 `scr/` gif：`anm_builder.frames_from_gif` → `mon.transmit`。
-4. 固件资源：IRAM 92%（WiFi 全进 Flash 没爆，再加代码小心）；RAM 69%（transport/status/webcfg 新增 +~4KB）；Flash 31%。
+4. 固件资源：IRAM 92%（WiFi 全进 Flash 没爆，再加代码小心）；RAM 73%（transport/status/webcfg/Web槽×4 新增）；Flash 31%。

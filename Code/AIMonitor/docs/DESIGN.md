@@ -71,7 +71,7 @@
 | done | `{"resp":"done"}` | 上传完成/流结束 |
 | progress | `{"resp":"progress","seq":30,"fps":24}` | 播放进度 |
 | state | `{"resp":"state","state":"play","name":"x.anm","seq":10}` | 状态查询/变更 |
-| pong | `{"resp":"pong","fw":"1.0.0","proto":1,"fs_total":2981888,"fs_free":2800000}` | ping 响应 |
+| pong | `{"resp":"pong","fw":"1.3.2","proto":1,"fs_total":2981888,"fs_free":2800000}` | ping 响应 |
 | list | `{"resp":"list","anims":["a.anm","b.anm"]}` | list 响应 |
 
 ## 5. 系统架构
